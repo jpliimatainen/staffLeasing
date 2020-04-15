@@ -293,14 +293,14 @@ function reservation_utilities_get_booking_data($start, $uid, $pid, $filters) {
     $type_tid = intval($store->field_type_ref['und'][0]['tid']);
     
     switch ($type_tid) {
-      case 16: // K-Market
-        $store_type = 'market';
+      case 16:
+        $store_type = 'store1';
         break;
-      case 17: // K-Supermarket
-        $store_type = 'supermarket';
+      case 17:
+        $store_type = 'store2';
         break;
-      case 18: // K-Citymarket
-        $store_type = 'citymarket';
+      case 18:
+        $store_type = 'store3';
         break;
       default:
         $store_type = '';
