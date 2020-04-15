@@ -1115,7 +1115,7 @@ function reservation_booking_views_edit_form_submit($form, &$form_state) {
     
     // send email
     /* drupal_mail('reservation_booking_views', 'booking_confirm_employee', $to, 
-        language_default(), $params, 'info@vuorokori.fi'); */
+        language_default(), $params, 'info@email.fi'); */
   }
   
   // prepare a message for the merchant
@@ -1149,7 +1149,7 @@ function reservation_booking_views_edit_form_submit($form, &$form_state) {
   
   // send email
   /* drupal_mail('reservation_booking_views', 'booking_confirm_merchant', $to, 
-      language_default(), $params, 'info@vuorokori.fi'); */
+      language_default(), $params, 'info@email.fi'); */
   
   drupal_set_message(t('Booking %bid edited', array('%bid' => $booking_id)));
 }
