@@ -33,8 +33,8 @@ function reservation_employee_reservations_menu() {
   );
   
    $items['admin/config/content/reservation-employee-reservations'] = array(
-    'title' => 'Vuorokori - työntekijä',
-    'description' => 'Hallinnoi vuorokorin työntekijä varaus moduulin asetuksia',
+    'title' => 'Järjestelmä - työntekijä',
+    'description' => 'Hallinnoi järjestelmän työntekijävaraus moduulin asetuksia',
     'page callback' => 'drupal_get_form',
     'page arguments' => array('reservation_employee_reservations_settings_form'),
     'access arguments' => array('administer reservation employee reservations'),
@@ -277,7 +277,7 @@ function reservation_employee_reservations_create_form_submit($form, &$form_stat
   );
   
   // destination for the mail
-  $to = variable_get('email', 'info@vuorokori.fi');
+  $to = variable_get('email', 'info@email.fi');
   
   // from address
   $from = $email;
