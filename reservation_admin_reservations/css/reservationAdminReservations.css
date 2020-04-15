@@ -1,0 +1,95 @@
+/* Pending reservations block */
+#block-reservation-admin-reservations-pending-reservations {
+    float: left;
+    margin-left: 50px;
+    padding: 20px 20px 30px 20px;
+    border: 1px solid #ccc;
+}
+
+#block-reservation-admin-reservations-pending-reservations .pending-reservations-info,
+#block-reservation-admin-reservations-pending-reservations .pending-reservations-link {
+    float: left;
+    clear: left;
+}
+
+#block-reservation-admin-reservations-pending-reservations .pending-reservations-link {
+    margin-top: 30px;
+}
+
+#block-reservation-admin-reservations-pending-reservations .pending-reservations-link a {
+    color: #fff;
+    font-size: 14px;
+    background-color: #0077df;
+    padding: 10px 20px;
+    text-decoration: none;
+}
+
+#block-reservation-admin-reservations-pending-reservations .pending-reservations-link a:visited {
+    color: #fff;
+}
+
+#block-reservation-admin-reservations-pending-reservations .pending-reservations-link a:hover {
+    background-color: #000;
+}
+
+/* Pending reservations form */
+#reservation-admin-reservations-pending-form {
+    float: left;
+    width: 1040px;
+    padding: 20px;
+    border: 1px solid #ccc;
+}
+
+#reservation-admin-reservations-pending-form .header {
+    float: left;
+    width: 1000px;
+    margin-bottom: 10px;
+    padding: 0 15px;
+    font-size: 15px;
+    font-weight: bold;
+}
+
+#reservation-admin-reservations-pending-form .reservation-row {
+    float: left;
+    width: 1000px;
+    font-size: 13px;
+    padding: 15px;
+    background-color: #fff;
+    margin-bottom: 15px;
+}
+
+#reservation-admin-reservations-pending-form .start,
+#reservation-admin-reservations-pending-form .end {
+    float: left;
+    width: 150px;
+}
+
+#reservation-admin-reservations-pending-form .name {
+    float: left;
+    width: 150px;
+    padding-right: 15px;
+}
+
+#reservation-admin-reservations-pending-form .info {
+    float: left;
+    width: 260px;
+    padding-right: 15px;
+}
+
+#reservation-admin-reservations-pending-form .reservation-row .content .start,
+#reservation-admin-reservations-pending-form .reservation-row .content .end,
+#reservation-admin-reservations-pending-form .reservation-row .content .name,
+#reservation-admin-reservations-pending-form .reservation-row .content .info {
+    position: relative;
+    top: 10px;
+    padding-bottom: 15px;
+}
+
+#reservation-admin-reservations-pending-form .form-submit {
+    float: left;
+}
+
+#reservation-admin-reservations-pending-form .reject-submit {
+    margin-left: 25px;
+    background-color: #ff0000;
+}

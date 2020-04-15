@@ -1,0 +1,669 @@
+.page-tilaus #page-title {
+    display: none;
+}
+
+.page-tilaus #block-system-main {
+    float: left;
+    width: 50%;
+    margin-right: 6%;
+}
+
+/* Welcome message block */
+#block-reservation-merchant-welcome {
+    float: left;
+    width: 100%;
+    margin-top: 50px;
+    margin-bottom: 50px;
+}
+
+#block-reservation-merchant-welcome .content div {
+    float: left;
+}
+
+#block-reservation-merchant-welcome .content .user-name {
+    font-size: 18px;
+    font-weight: bold;
+    margin-right: 60px;
+}
+
+/* Merchant order form */
+#reservation-merchant-order-form {
+    float: left;
+    width: 100%;
+}
+
+#reservation-merchant-order-form h1 {
+    margin-top: 0;
+    margin-bottom: 20px;
+    font-size: 2em;
+}
+
+#reservation-merchant-order-form .arrow-up {
+    float: left;
+    position: relative;
+    top: 5px;
+    left: 50px;
+}
+
+#reservation-merchant-order-form .form-container {
+    float: left;
+    width: 100%;
+    background-color: #fff;
+    padding: 25px 0;
+    border-radius: 10px;
+}
+
+#reservation-merchant-order-form .form-type-textfield input {
+    border-radius: 0;
+    border: 1px solid #ddd;
+}
+
+#reservation-merchant-order-form .form-item-start-time input,
+#reservation-merchant-order-form .form-item-end-time input,
+#reservation-merchant-order-form .form-item-date input {
+    padding: 5px 0;
+    text-align: center;
+    width: 130px;
+}
+
+#order-data-items .order-item-edit-item .container-inline-date,
+#reservation-merchant-order-form .container-inline-date,
+#reservation-merchant-order-form .form-item-store,
+#reservation-merchant-order-form .form-item-section {
+    margin-bottom: 25px;
+    float: left;
+    clear: none;
+}
+
+#reservation-merchant-order-form .container-inline-date:first-child,
+#reservation-merchant-order-form .form-item-section,
+#reservation-merchant-order-form .form-submit {
+    margin-left: 25px;
+}
+
+#reservation-merchant-order-form .form-item-section,
+#reservation-merchant-order-form .form-item-store {
+    margin-bottom: 25px;
+    float: left;
+}
+
+#reservation-merchant-order-form .form-item-section {
+    clear: left;
+    margin-right: 30px;
+}
+
+#reservation-merchant-order-form .form-item-section select,
+#reservation-merchant-order-form .form-item-store select {
+    background-color: #fff;
+    padding: 8px 0;
+    text-align: center;
+    border: 1px solid #ddd;
+    width: 200px;
+}
+
+#reservation-merchant-order-form .form-item-date,
+#reservation-merchant-order-form .form-item-start-time {
+    margin-right: 20px;
+}
+
+#reservation-merchant-order-form .form-item-date-date label, 
+#reservation-merchant-order-form .form-item-start-time-time label, 
+#reservation-merchant-order-form .form-item-end-time-time label, 
+#reservation-merchant-order-form .form-item-date .description,
+#reservation-merchant-order-form .form-item-start-time .description,
+#reservation-merchant-order-form .form-item-end-time .description {
+    display: none;
+}
+
+#reservation-merchant-order-form .form-item label {
+    font-size: 14px;
+    margin-bottom: 10px;
+}
+
+#reservation-merchant-order-form .form-submit {
+    float: left;
+    clear: left;
+    width: 430px;
+    text-transform: none;
+    text-align: center;
+    padding: 15px 0 17px 0;
+    background: #0077df url('../images/calendar.png') no-repeat 135px 15px;
+    font-size: 16px;
+}
+
+
+/* Printed booking form block */
+#block-reservation-merchant-printed-booking {
+    float: left;
+    width: 44%;
+}
+
+#reservation-merchant-printed-booking-form {
+    float: left;
+    width: 100%;
+    margin-top: 82px;
+    background-color: #fff;
+    padding: 25px 0;
+    border-radius: 10px;
+}
+
+#reservation-merchant-printed-booking-form .form-description,
+#reservation-merchant-printed-booking-form .form-item-file,
+#reservation-merchant-printed-booking-form .form-submit {
+    font-size: 14px;
+    margin-left: 30px;
+}
+
+#reservation-merchant-printed-booking-form .description {
+    margin-bottom: 30px;
+}
+
+#reservation-merchant-printed-booking-form .form-managed-file .form-submit {
+    margin-left: 5px;
+}
+
+#reservation-merchant-printed-booking-form > div > .form-submit {
+    text-transform: none;
+    text-align: center;
+    padding: 15px 0 17px 0;
+    margin-top: 55px;
+    background: #0077df url('../images/calendar.png') no-repeat 40px 15px;
+    width: 250px;
+}
+
+
+/* Order rows form */
+#block-reservation-merchant-order-rows {
+    float: left;
+    width: 100%;
+    margin-top: 40px;
+    margin-bottom: 40px;
+}
+
+#content #block-reservation-merchant-order-rows h2 {
+    margin-bottom: 20px;
+    margin-top: 0;
+}
+
+#reservation-merchant-order-rows-form .order-data-header,
+#reservation-merchant-order-rows-form #order-data-items, 
+#reservation-merchant-order-rows-form .order-item,
+#reservation-merchant-order-rows-form .order-item-data,
+#reservation-merchant-order-rows-form .order-item-edit-item, 
+#reservation-merchant-order-rows-form .form-item-feedback {
+    float: left;
+    width: 100%;
+}
+
+#reservation-merchant-order-rows-form #order-data-items {
+    margin-bottom: 30px;
+}
+
+#reservation-merchant-order-rows-form #order-data-items .order-item {
+    margin-top: 5px;
+    margin-bottom: 5px;
+}
+
+#reservation-merchant-order-rows-form #order-data-items .order-item-data {
+    padding: 15px 0;
+    background-color: #fff;
+}
+
+#reservation-merchant-order-rows-form .order-item-edit-item {
+    display: none;
+    width: 100%;
+    padding: 15px 0;
+    margin-bottom: 10px;
+    margin-top: 0;
+    -webkit-box-shadow: 0 0 10px 0px #101010;
+    box-shadow: 0 0 10px 0px #101010;
+}
+
+#reservation-merchant-order-rows-form .form-submit {
+    float: left;
+}
+
+#reservation-merchant-order-rows-form .order-data-header {
+    padding: 15px;
+}
+
+#reservation-merchant-order-rows-form .order-data-header span {
+    float: left;
+    font-weight: bold;
+    text-transform: uppercase;
+    font-size: 13px;
+}
+
+#reservation-merchant-order-rows-form .order-item-data span {
+    float: left;
+    font-size: 12px;
+}
+
+#reservation-merchant-order-rows-form .booking-id {
+    width: 90px;
+}
+
+#reservation-merchant-order-rows-form .store {
+    width: 160px;
+}
+
+#reservation-merchant-order-rows-form .section {
+    width: 100px;
+}
+
+#reservation-merchant-order-rows-form .date {
+    width: 100px;
+}
+
+#reservation-merchant-order-rows-form .start {
+    width: 70px;
+}
+
+#reservation-merchant-order-rows-form .end {
+    width: 80px;
+}
+
+#reservation-merchant-order-rows-form .duration {
+    width: 100px;
+}
+
+#reservation-merchant-order-rows-form .order-item-data .booking-id,
+#reservation-merchant-order-rows-form .order-item-data .store,
+#reservation-merchant-order-rows-form .order-item-data .section,
+#reservation-merchant-order-rows-form .order-item-data .date,
+#reservation-merchant-order-rows-form .order-item-data .start,
+#reservation-merchant-order-rows-form .order-item-data .end,
+#reservation-merchant-order-rows-form .order-item-data .duration {
+    margin-top: 10px;
+}
+
+#reservation-merchant-order-rows-form .order-item-data .booking-id {
+    padding-left: 15px;
+}
+
+#reservation-merchant-order-rows-form .order-item-data .form-submit {
+    background-color: #ff0000;
+    margin-left: 10px;
+    font-size: 13px;
+}
+
+#reservation-merchant-order-rows-form .order-item-data .edit-link {
+    float: left;
+    margin-left: 25px;
+    padding: 10px 25px;
+    text-transform: uppercase;
+    color: #fff;
+    background-color: #01c000;
+    font-size: 13px;
+}
+
+#reservation-merchant-order-rows-form .order-item-edit-item {
+    margin-top: 25px;
+    float: left;
+}
+
+#reservation-merchant-order-rows-form .order-item-edit-item .time-field,
+#reservation-merchant-order-rows-form .order-item-edit-item .date-field,
+#reservation-merchant-order-rows-form .order-item-edit-item .section-field,
+#reservation-merchant-order-rows-form .order-item-edit-item .store-field,
+#reservation-merchant-order-rows-form .order-item-edit-item .cancel-edit-link,
+#reservation-merchant-order-rows-form .order-item-edit-item .form-submit {
+    float: left;
+}
+
+#reservation-merchant-order-rows-form .order-item-edit-item .section-field,
+#reservation-merchant-order-rows-form .order-item-edit-item .store-field {
+    margin-top: 0;
+    margin-right: 20px;
+}
+
+#reservation-merchant-order-rows-form .order-item-edit-item .section-field select,
+#reservation-merchant-order-rows-form .order-item-edit-item .store-field select {
+    background-color: #fff;
+    padding: 8px 0;
+    text-align: center;
+    border: 1px solid #ddd;
+    font-size: 13px;
+}
+
+#reservation-merchant-order-rows-form .order-item-edit-item .section-field select {
+    width: 120px;
+}
+
+#reservation-merchant-order-rows-form .order-item-edit-item .store-field select {
+    width: 210px;
+}
+
+#reservation-merchant-order-rows-form .order-item-edit-item .time-field,
+#reservation-merchant-order-rows-form .order-item-edit-item .date-field {
+    margin-right: 5px;
+}
+
+#reservation-merchant-order-rows-form .order-item-edit-item .date-field {
+    margin-left: 5px;
+}
+
+#reservation-merchant-order-rows-form .order-item-edit-item .time-field input,
+#reservation-merchant-order-rows-form .order-item-edit-item .date-field input {
+    padding: 3px 0;
+    text-align: center;
+    border: 1px solid #ddd;
+}
+
+#reservation-merchant-order-rows-form .order-item-edit-item .time-field input {
+    width: 80px;
+}
+
+#reservation-merchant-order-rows-form .order-item-edit-item .date-field input {
+    width: 100px;
+}
+
+#reservation-merchant-order-rows-form .order-item-edit-item .form-type-select {
+    margin-top: 0;
+}
+
+#reservation-merchant-order-rows-form .order-item-edit-item .form-type-textfield > label,
+#reservation-merchant-order-rows-form .order-item-edit-item .form-item .description {
+    display: none;
+}
+
+#reservation-merchant-order-rows-form .order-item-edit-item .form-item label {
+    font-size: 13px;
+    margin-bottom: 5px;
+    margin-left: 5px;
+}
+
+#reservation-merchant-order-rows-form .order-item-edit-item .cancel-edit-link {
+    padding: 10px 30px;
+    text-transform: uppercase;
+    color: #fff;
+    background-color: #383838;
+    font-size: 13px;
+    margin: 20px 25px 0 5px;
+}
+
+#reservation-merchant-order-rows-form .order-item-data .edit-link:hover,
+#reservation-merchant-order-rows-form .order-item-edit-item .cancel-edit-link:hover {
+    cursor: pointer;
+}
+
+#reservation-merchant-order-rows-form .order-item-edit-item .form-submit {
+    margin-top: 20px;
+    font-size: 13px;
+}
+
+/* Feedback block */
+#block-reservation-merchant-feedback {
+    float: left;
+    width: 100%;
+    margin-top: 30px;
+}
+
+#block-reservation-merchant-feedback .form-item-feedback {
+    float: left;
+    width: 100%;
+}
+
+#block-reservation-merchant-feedback form .form-submit {
+    float: left;
+}
+
+/* Bookings in this session form */
+#block-reservation-merchant-session-booking {
+    float: left;
+    width: 100%;
+}
+
+#content #block-reservation-merchant-session-booking h2 {
+    margin-bottom: 20px;
+    margin-top: 0;
+}
+
+#reservation-merchant-bookings-form .bookings-data-header,
+#reservation-merchant-bookings-form #booking-data-items, 
+#reservation-merchant-bookings-form .booking-item,
+#reservation-merchant-bookings-form .booking-item-data,
+#reservation-merchant-bookings-form .booking-item-edit-item, 
+#reservation-merchant-bookings-form .form-item-feedback {
+    float: left;
+    width: 100%;
+}
+
+#reservation-merchant-bookings-form #booking-data-items {
+    margin-bottom: 30px;
+}
+
+#reservation-merchant-bookings-form #booking-data-items .booking-item {
+    margin-top: 5px;
+    margin-bottom: 5px;
+}
+
+#reservation-merchant-bookings-form #booking-data-items .booking-item-data {
+    padding: 15px 0;
+    background-color: #fff;
+}
+
+#reservation-merchant-bookings-form .booking-item-edit-item {
+    display: none;
+    width: 100%;
+    padding: 15px 0;
+    margin-bottom: 10px;
+    margin-top: 0;
+    -webkit-box-shadow: 0 0 10px 0px #101010;
+    box-shadow: 0 0 10px 0px #101010;
+}
+
+#reservation-merchant-bookings-form .form-submit {
+    float: left;
+}
+
+#reservation-merchant-bookings-form .bookings-data-header {
+    padding: 15px;
+}
+
+#reservation-merchant-bookings-form .bookings-data-header span {
+    float: left;
+    font-weight: bold;
+    text-transform: uppercase;
+    font-size: 13px;
+}
+
+#reservation-merchant-bookings-form .booking-item-data span {
+    float: left;
+    font-size: 12px;
+}
+
+#reservation-merchant-bookings-form .order-id {
+    width: 70px;
+}
+
+#reservation-merchant-bookings-form .booking-id {
+    width: 80px;
+}
+
+#reservation-merchant-bookings-form .store {
+    width: 160px;
+}
+
+#reservation-merchant-bookings-form .section {
+    width: 90px;
+}
+
+#reservation-merchant-bookings-form .date {
+    width: 100px;
+}
+
+#reservation-merchant-bookings-form .start {
+    width: 70px;
+}
+
+#reservation-merchant-bookings-form .end {
+    width: 80px;
+}
+
+#reservation-merchant-bookings-form .duration {
+    width: 100px;
+}
+
+#reservation-merchant-bookings-form .state {
+    width: 60px;
+}
+
+#reservation-merchant-bookings-form .booking-item-data .order-id,
+#reservation-merchant-bookings-form .booking-item-data .booking-id,
+#reservation-merchant-bookings-form .booking-item-data .store,
+#reservation-merchant-bookings-form .booking-item-data .section,
+#reservation-merchant-bookings-form .booking-item-data .date,
+#reservation-merchant-bookings-form .booking-item-data .start,
+#reservation-merchant-bookings-form .booking-item-data .end,
+#reservation-merchant-bookings-form .booking-item-data .duration,
+#reservation-merchant-bookings-form .booking-item-data .state {
+    margin-top: 10px;
+}
+
+#reservation-merchant-bookings-form .booking-item-data .order-id {
+    padding-left: 15px;
+}
+
+#reservation-merchant-bookings-form .booking-item-data .form-submit {
+    background-color: #ff0000;
+    margin-left: 10px;
+    font-size: 13px;
+}
+
+#reservation-merchant-bookings-form .booking-item-data .edit-link {
+    float: left;
+    margin-left: 25px;
+    padding: 10px 25px;
+    text-transform: uppercase;
+    color: #fff;
+    background-color: #01c000;
+    font-size: 13px;
+}
+
+#reservation-merchant-bookings-form .booking-item-edit-item {
+    margin-top: 25px;
+    float: left;
+}
+
+#reservation-merchant-bookings-form .booking-item-edit-item .time-field,
+#reservation-merchant-bookings-form .booking-item-edit-item .date-field,
+#reservation-merchant-bookings-form .booking-item-edit-item .section-field,
+#reservation-merchant-bookings-form .booking-item-edit-item .store-field,
+#reservation-merchant-bookings-form .booking-item-edit-item .cancel-edit-link,
+#reservation-merchant-bookings-form .booking-item-edit-item .form-submit {
+    float: left;
+}
+
+#reservation-merchant-bookings-form .booking-item-edit-item .section-field,
+#reservation-merchant-bookings-form .booking-item-edit-item .store-field {
+    margin-top: 0;
+    margin-right: 20px;
+}
+
+#reservation-merchant-bookings-form .booking-item-edit-item .section-field select,
+#reservation-merchant-bookings-form .booking-item-edit-item .store-field select {
+    background-color: #fff;
+    padding: 8px 0;
+    text-align: center;
+    border: 1px solid #ddd;
+    font-size: 13px;
+}
+
+#reservation-merchant-bookings-form .booking-item-edit-item .section-field select {
+    width: 120px;
+}
+
+#reservation-merchant-bookings-form .booking-item-edit-item .store-field select {
+    width: 210px;
+}
+
+#reservation-merchant-bookings-form .booking-item-edit-item .time-field,
+#reservation-merchant-bookings-form .booking-item-edit-item .date-field {
+    margin-right: 5px;
+}
+
+#reservation-merchant-bookings-form .booking-item-edit-item .date-field {
+    margin-left: 5px;
+}
+
+#reservation-merchant-bookings-form .booking-item-edit-item .time-field input,
+#reservation-merchant-bookings-form .booking-item-edit-item .date-field input {
+    padding: 3px 0;
+    text-align: center;
+    border: 1px solid #ddd;
+}
+
+#reservation-merchant-bookings-form .booking-item-edit-item .time-field input {
+    width: 80px;
+}
+
+#reservation-merchant-bookings-form .booking-item-edit-item .date-field input {
+    width: 100px;
+}
+
+#reservation-merchant-bookings-form .booking-item-edit-item .form-type-select {
+    margin-top: 0;
+}
+
+#reservation-merchant-bookings-form .booking-item-edit-item .form-type-textfield > label,
+#reservation-merchant-bookings-form .booking-item-edit-item .form-item .description {
+    display: none;
+}
+
+#reservation-merchant-bookings-form .booking-item-edit-item .form-item label {
+    font-size: 13px;
+    margin-bottom: 5px;
+    margin-left: 5px;
+}
+
+#reservation-merchant-bookings-form .booking-item-edit-item .cancel-edit-link {
+    padding: 10px 30px;
+    text-transform: uppercase;
+    color: #fff;
+    background-color: #383838;
+    font-size: 13px;
+    margin: 20px 25px 0 5px;
+}
+
+#reservation-merchant-bookings-form .booking-item-data .edit-link:hover,
+#reservation-merchant-bookings-form .booking-item-edit-item .cancel-edit-link:hover {
+    cursor: pointer;
+}
+
+#reservation-merchant-bookings-form .booking-item-edit-item .form-submit {
+    margin-top: 20px;
+    font-size: 13px;
+}
+
+#reservation-merchant-bookings-form #download-report {
+    float: left;
+    clear: both;
+    margin-left: 50px;
+}
+
+#reservation-merchant-bookings-form #download-report a {
+    padding: 10px 20px 10px 60px;
+    background: #0077df url('../images/calendar.png') no-repeat 20px 10px;
+    color: #fff;
+    text-decoration: none;
+}
+
+#reservation-merchant-bookings-form #download-report a:visited {
+    color: #fff;
+}
+
+#reservation-merchant-bookings-form #download-report a:hover {
+    background-color: #000;
+}
+
+/* Printed bookings in the session block */
+#block-reservation-merchant-session-printed-bookings {
+    float: left;
+    width: 100%;
+    margin-bottom: 40px;
+}
+
+#block-reservation-merchant-session-printed-bookings .printed-booking-row {
+    margin-bottom: 15px;
+}

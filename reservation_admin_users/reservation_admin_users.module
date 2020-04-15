@@ -1,0 +1,291 @@
+<?php
+
+/**
+ * @file reservation_admin_users.module
+ * Provides functions for user management by admins
+ */
+
+/**
+ * Implements hook_permission
+ */
+function reservation_admin_users_permission() {
+  return array(
+    'administer reservation admin users' => array(
+      'title' => t('Admister reservation admin users'),
+      'descripiton' => t('Execute administrative tasks for reservation admin '
+          . 'users'),
+    ),
+  );
+}
+
+
+/**
+ * Implements hook_page_alter()
+ */
+function reservation_admin_users_page_alter(&$page) {
+  if (drupal_is_front_page() && user_is_logged_in()) { // the front page and a logged in user
+    if (reservation_utilities_is_admin()) { // an admin
+      // redirect to the dashboard page
+      drupal_goto('dashboard');
+    }
+  }
+}
+
+
+/**
+ * Implements hook_form_alter()
+ */
+function reservation_admin_users_form_alter(&$form, &$form_state, $form_id) {
+  switch ($form_id) {
+    case 'user_profile_form':
+      if (strpos($form['#action'], 'pass-reset-token') !== FALSE) { // password reset form
+        // add a custom submit handler
+        $form['#submit'][] = 'reservation_admin_users_user_profile_form_submit';
+      }
+      break;
+  }
+}
+
+
+/**
+ * Implements hook_menu()
+ */
+function reservation_admin_users_menu() {
+  $items = array();
+  
+  $items['dashboard'] = array(
+    'title' => 'Työpöytä',
+    'page callback' => 'reservation_admin_users_render_dashboard',
+    'access callback' => 'reservation_utilities_is_admin',
+    'type' => MENU_NORMAL_ITEM,
+  );
+  
+  return $items;
+}
+
+
+/**
+ * Page callback - Dashboard
+ */
+function reservation_admin_users_render_dashboard() {
+  return '';
+}
+
+
+/**
+ * BLOCKS CONFIGURATION
+ */
+
+/**
+ * Implements hook_block_info()
+ */
+function reservation_admin_users_block_info() {
+  $blocks['pending_merchants'] = array(
+    'info' => t('Pending merchants'),
+    'visibility' => BLOCK_VISIBILITY_LISTED,
+    'pages' => 'dashboard',
+  );
+  
+  $blocks['register_merchant'] = array(
+    'info' => t('Register merchant'),
+    'visibility' => BLOCK_VISIBILITY_LISTED,
+    'pages' => 'dashboard',
+  );
+  
+  return $blocks;
+}
+
+
+/**
+ * Implements hook_block_view()
+ */
+function reservation_admin_users_block_view($delta = '') {
+  $block = array();
+  
+  switch ($delta) {
+    case 'pending_merchants':
+      // get pending merchants form
+      $pending_merchants = drupal_get_form('reservation_admin_users_pending_merchants_form');
+      
+      $block['subject'] = t('Pending merchants');
+      $block['content'] = drupal_render($pending_merchants);
+      break;
+    
+    case 'register_merchant':
+      $block['subject'] = '';
+      $block['content'] = '<div><a href="/user/register/kauppias">Lisää kauppias'
+          . '</a></div>';
+      break;
+    
+    default:
+      break;
+  }
+
+  return $block;
+}
+
+
+/**
+ * FORM CALLBACKS
+ */
+
+/**
+ * Form callback - pending merchants form
+ */
+function reservation_admin_users_pending_merchants_form($form, &$form_state) {
+  global $user;
+  $form = array();
+  $locations = array();
+  
+  // load user account
+  $account = user_load($user->uid);
+  
+  if (isset($account->field_location_ref_user) && !empty($account->field_location_ref_user)) {
+    $tids = array();
+    // get location ids
+    foreach ($account->field_location_ref_user['und'] as $delta => $tid) {
+      $tids[] = $tid['tid'];
+    }
+    // get locations for this user
+    $locations = reservation_utilities_get_locations($tids);
+  }
+  
+  // get ids for pending merchant users
+  $pending_ids = reservation_utilities_get_pending_merchant_ids($locations);
+  
+  if (!empty($pending_ids)) {
+    // create form header
+    $form['header'] = array(
+      '#markup' => '<div class="header"><span class="name">Nimi</span><span '
+          . 'class="location">Kaupunki</span><span class="stores">Kauppa</span>'
+          . '</div>',
+    );
+    // create form items
+    foreach ($pending_ids as $key => $data) {
+      // create a container for a row
+      $form['merchant-' . $key] = array(
+        '#type' => 'container',
+        '#attributes' => array(
+          'class' => array('merchant-row')
+        ),
+      );
+      
+      // create text content for the row
+      $form['merchant-' . $key]['content'] = array(
+        '#markup' => reservation_admin_users_pending_merchants_row($data),
+      );
+      
+      // create a submit button
+      $form['merchant-' . $key]['submit'] = array(
+        '#type' => 'submit',
+        '#value' => 'Hyväksy',
+        '#name' => 'op-confirm-' . $key,
+        '#submit' => array('reservation_admin_users_confirm_merchant'),
+      );
+    }
+  }
+  
+  return $form;
+}
+
+
+/**
+ * FORM SUBMIT FUNCTIONS
+ */
+
+/**
+ * Form submit - user profile form
+ */
+function reservation_admin_users_user_profile_form_submit($form, &$form_state) {
+  global $user;
+  
+  if (in_array('ylläpitäjä', $user->roles) || in_array('administrator', 
+      $user->roles)) { // an admin
+    // redirect to dashboard page
+    $form_state['redirect'] = 'dashboard';
+  }
+  else if (in_array('kauppias', $user->roles)) { // a merchant
+    // redirect to order page
+    $form_state['redirect'] = 'tilaus';
+  }
+}
+
+
+/**
+ * Form submit - confirm pending merchant
+ */
+function reservation_admin_users_confirm_merchant($form, &$form_state) {
+  // get #name for the clicked button
+  $name = $form_state['clicked_button']['#name'];
+  
+  // get user id from the name (name = op-confirm-[user-id])
+  $user_id = substr($name, 11);
+  
+  // load user account
+  $account = user_load($user_id);
+
+  // set account active
+  $account->status = 1;
+  
+  // save the user account
+  user_save($account);
+  
+  // load user profile
+  $profile_array = profile2_load_by_user($account);
+  $profile = reset($profile_array);
+  $entity_type = 'profile2';
+  $profile_wrapper = entity_metadata_wrapper($entity_type, $profile);
+  
+  // get name
+  $name = $profile_wrapper->field_nimi->value();
+  
+  drupal_set_message(t('User %user activated', array('%user' => $name)));
+}
+
+/**
+ * HELPER FUNCTIONS FOR FORM CONSTRUCTION
+ */
+
+/**
+ * Creates markup for a pending merchants row
+ * 
+ * @param array $data - merchant id data
+ * 
+ * @return string - markup
+ */
+function reservation_admin_users_pending_merchants_row($data) {
+  // load user profile
+  $profile = profile2_load($data['pid']);
+  $entity_type = 'profile2';
+  $profile_wrapper = entity_metadata_wrapper($entity_type, $profile);
+  
+  // get name
+  $name = $profile_wrapper->field_nimi->value();
+  
+  $stores = array();
+  
+  foreach ($profile_wrapper->field_store_ref as $delta => $store_wrapper) {
+    // get store
+    $stores[] = $store_wrapper->label();
+    if (!isset($location)) { // get location
+      $location = $store_wrapper->field_location_ref_store->label();
+    }
+  }
+  
+  // create markup
+  $markup = '<div class="content"><span class="name">' . $name . '</span><span '
+      . 'class="location">' . $location . '</span><span class="stores">';
+  
+  if (count($stores) > 1) { // more than one stores   
+    foreach ($stores as $delta => $store) {
+      $markup .= $store . '<br />';
+    }
+    
+    $markup .= '</span></div>';
+  }
+  else { // a single store
+    $markup .= reset($stores) . '</span></div>';
+  }
+  
+  return $markup;
+}

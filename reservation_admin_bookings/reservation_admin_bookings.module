@@ -1,0 +1,665 @@
+<?php
+
+/**
+ * @file reservation_admin_bookings.module
+ * Provides functions for booking management by admins
+ */
+
+/**
+ * Implements hook_permission
+ */
+function reservation_admin_bookings_permission() {
+  return array(
+    'administer reservation admin bookings' => array(
+      'title' => t('Admister reservation admin bookings'),
+      'descripiton' => t('Execute administrative tasks for reservation admin '
+          . 'bookings'),
+    ),
+  );
+}
+
+
+/**
+ * Implements hook_menu()
+ */
+function reservation_admin_bookings_menu() {
+  $items = array();
+  
+  $items['lisaa-tyovuoro'] = array(
+    'title' => 'Lisää työvuoro',
+    'page callback' => 'reservation_admin_bookings_new_booking_page',
+    'access callback' => 'reservation_utilities_is_admin',
+    'type' => MENU_NORMAL_ITEM,
+  );
+  
+  return $items;
+}
+
+
+/**
+ * Implements hook_mail()
+ */
+function reservation_admin_bookings_mail($key, &$message, $params) {
+  switch ($key) {
+    case 'booking_confirm_merchant_admin':
+    case 'booking_confirm_employee':  
+      if (isset($params['subject'])) {
+        $message['subject'] = $params['subject'];
+      }
+      if (isset($params['body'])) {
+        $message['body'][] = $params['body'];
+      }
+      if (isset($params['headers']) && is_array($params['headers'])) {
+        $message['headers'] += $params['headers'];
+      }
+      break;
+  }
+}
+
+
+/**
+ * BLOCKS CONFIGURATION
+ */
+
+/**
+ * Implements hook_block_info()
+ */
+function reservation_admin_bookings_block_info() {
+  $blocks['create_booking'] = array(
+    'info' => t('Create a booking'),
+    'visibility' => BLOCK_VISIBILITY_LISTED,
+    'pages' => 'dashboard',
+  );
+  $blocks['pending_bookings'] = array(
+    'info' => t('Pending bookings'),
+    'visibility' => BLOCK_VISIBILITY_LISTED,
+    'pages' => 'dashboard',
+  );
+  
+  return $blocks;
+}
+
+
+/**
+ * Implements hook_block_view()
+ */
+function reservation_admin_bookings_block_view($delta = '') {
+  $block = array();
+  
+  switch ($delta) {
+    case 'create_booking':
+      // get the booking creation form for the admin
+      $booking_form = drupal_get_form('reservation_admin_bookings_create_form');
+      
+      $block['subject'] = t('Create a booking');
+      $block['content'] = drupal_render($booking_form);
+      break;
+    
+    case 'pending_bookings':
+      // get pending bookings form
+      $pending_bookings = drupal_get_form('reservation_admin_bookings_pending_form');
+      
+      $block['subject'] = t('Pending bookings');
+      $block['content'] = drupal_render($pending_bookings);
+      break;
+    
+    default:
+      break;
+  }
+
+  return $block;
+}
+
+
+/**
+ * PAGE CALLBACKS
+ */
+
+/**
+ * Page callback - make a new booking page
+ */
+function reservation_admin_bookings_new_booking_page() {
+  $markup = '<div id="create-booking-form">';
+  // get make a booking form
+  $booking_form = drupal_get_form('reservation_admin_bookings_create_form');
+  
+  // render the form
+  $markup .= drupal_render($booking_form);
+  $markup .= '</div>';
+  
+  return $markup;
+}
+
+
+/**
+ * FORM CALLBACKS
+ */
+
+/**
+ * Form callback - booking creation form
+ */
+function reservation_admin_bookings_create_form($form, &$form_state) {
+  global $user;
+  $form = array();
+  
+  // get query parameters
+  $query = drupal_get_query_parameters();
+  
+  if (!empty($query) && isset($query['date'])) { // date set in query
+    $date = $query['date'];
+  }
+  else {
+    $date = format_date(REQUEST_TIME, 'custom', 'Y-m-d H:i');
+  }
+  
+  // load user account
+  $account = user_load($user->uid);
+  
+  if (isset($account->field_location_ref_user) && !empty($account->field_location_ref_user)) {
+    $tids = array();
+    // get location ids
+    foreach ($account->field_location_ref_user['und'] as $delta => $tid) {
+      $tids[] = $tid['tid'];
+    }
+    // get locations for this user
+    $locations = reservation_utilities_get_locations($tids);
+  }
+  else {
+   // get all locations
+   $locations = reservation_utilities_get_locations();
+  }
+  
+  if (!empty($form_state['values']['location'])) { // a location selected
+    $location_tid = $form_state['values']['location'];
+  }
+  else if (!empty($query) && isset($query['location'])) { // location set in query
+    $location_tid = $query['location'];
+  }
+  else { // get the default location
+    foreach ($locations as $key => $value) {
+      // get tid for the default location
+      $location_tid = $key;
+      break;
+    }
+  }
+  
+  // get stores for the selected (or default) location
+  $stores = reservation_utilities_get_stores_by_locations(array($location_tid));
+  
+  if (!empty($form_state['values']['store']) && 
+      $form_state['triggering_element']['#name'] === 'store') { // a store selected
+    $store_id = $form_state['values']['store'];
+  }
+  else if (!empty($query) && isset($query['store'])) { // store set in query
+    $store_id = $query['store'];
+  }
+  else { // get the default store
+    foreach ($stores as $key => $value) {
+      // get id for the default store
+      $store_id = $key;
+      break;
+    }
+  }
+  
+  if (!empty($stores)) { // at least one store for the location
+    // get merchants for the selected (or default) store
+    $merchants = reservation_utilities_get_merchants($store_id);
+  }
+  else { // no stores; show no merchants
+    $merchants = array();
+  }
+  
+  // get sections
+  $sections = reservation_utilities_get_sections();
+  
+  // get employees for the selected (or default) location
+  $employees = reservation_utilities_get_employees(array($location_tid));
+  
+  $form['date'] = array(
+    '#type' => 'date_popup',
+    '#title' => 'Päivämäärä',
+    '#date_format' => 'd.m.Y',
+    '#date_year_range' => '0:+3',
+    '#default_value' => $date,
+    '#required' => TRUE,
+  );
+  
+  $form['start_time'] = array(
+    '#type' => 'date_popup',
+    '#title' => 'Alkaa',
+    '#date_format' => 'H:i',
+    '#default_value' => $date,
+    '#required' => TRUE,
+    '#timepicker' => 'timepicker',
+    '#timepicker_options' => array(
+      'rows' => 6,
+      'showCloseButton' => TRUE,
+      'closeButtonText' => t('Close'),
+      'hourText' => t('Hour'),
+      'minuteText' => t('Minute'),
+      'amPmText' => array(t('AM'), t('PM')),
+    ),
+  );
+  
+  $form['end_time'] = array(
+    '#type' => 'date_popup',
+    '#title' => 'Päättyy',
+    '#date_format' => 'H:i',
+    '#default_value' => $date,
+    '#required' => TRUE,
+    '#timepicker' => 'timepicker',
+    '#timepicker_options' => array(
+      'rows' => 6,
+      'showCloseButton' => TRUE,
+      'closeButtonText' => t('Close'),
+      'hourText' => t('Hour'),
+      'minuteText' => t('Minute'),
+      'amPmText' => array(t('AM'), t('PM')),
+    ),
+  );
+  
+  // location selection
+  $form['location'] = array(
+    '#type' => 'select',
+    '#title' => 'Kaupunki/Alue',
+    '#options' => $locations,
+    '#default_value' => $location_tid,
+    '#ajax' => array(
+      'callback' => 'reservation_admin_bookings_change_location',
+      'wrapper' => 'location-container',
+      'method' => 'replace',
+    ),
+    '#attributes' => array(
+      'autocomplete' => 'off',
+    ),
+  );
+  
+  // container for location elements (store, merchant, employee)
+  $form['container'] = array(
+    '#type' => 'container',
+    '#prefix' => '<div id="location-container" class="form-container">',
+    '#suffix' => '</div>',
+  );
+  
+  // store selection
+  $form['container']['store'] = array(
+    '#type' => 'select',
+    '#title' => 'Kauppa',
+    '#options' => $stores,
+    '#default_value' => $store_id,
+    '#ajax' => array(
+      'callback' => 'reservation_admin_bookings_change_store',
+      'wrapper' => 'merchant-selection',
+      'method' => 'replace',
+    ),
+    '#attributes' => array(
+      'autocomplete' => 'off',
+    ),
+  );
+  
+  // merchant selection
+  $form['container']['merchant'] = array(
+    '#type' => 'select',
+    '#title' => 'Kauppias',
+    '#options' => $merchants,
+    '#default_value' => reset($merchants),
+    '#prefix' => '<div id="merchant-selection">',
+    '#suffix' => '</div>',
+    '#attributes' => array(
+      'autocomplete' => 'off',
+    ),
+  );
+  
+  // employee selection
+  $form['container']['employee'] = array(
+    '#type' => 'select',
+    '#title' => 'Työntekijä',
+    '#options' => $employees,
+    '#default_value' => reset($employees),
+    '#prefix' => '<div id="employee-selection">',
+    '#suffix' => '</div>',
+    '#attributes' => array(
+      'autocomplete' => 'off',
+    ),
+  );
+  
+  // section selection
+  $form['section'] = array(
+    '#type' => 'select',
+    '#title' => 'Osasto',
+    '#options' => $sections,
+    '#default_value' => reset($sections),
+    '#attributes' => array(
+      'autocomplete' => 'off',
+    ),
+  );
+  
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => 'Lisää vuoro',
+  );
+  
+  return $form;
+}
+
+
+/**
+ * Form callback - pending bookings form
+ */
+function reservation_admin_bookings_pending_form($form, &$form_state) {
+  global $user;
+  $form = array();
+  
+  // load user account
+  $account = user_load($user->uid);
+  
+  if (isset($account->field_location_ref_user) && !empty($account->field_location_ref_user)) {
+    $tids = array();
+    // get location ids
+    foreach ($account->field_location_ref_user['und'] as $delta => $tid) {
+      $tids[] = $tid['tid'];
+    }
+  }
+  
+  // get ids for pending bookings
+  $pending_ids = reservation_utilities_get_booking_ids(1, array(1), $tids);
+  
+  if (!empty($pending_ids)) {
+    // create form header
+    $form['header'] = array(
+      '#markup' => '<div class="header"><span class="booking-id">ID</span><span '
+          . 'class="date">Pvm</span><span class="start">Alkaa</span><span class='
+          . '"end">Päättyy</span><span class="name">Nimi</span><span class="store'
+          . '">Kauppa</span></div>',
+    );
+    // create form items
+    foreach ($pending_ids as $key => $value) {
+      // create a container for a row
+      $form['booking-' . $value] = array(
+        '#type' => 'container',
+        '#attributes' => array(
+          'class' => array('booking-row')
+        ),
+      );
+      
+      // create text content for the row
+      $form['booking-' . $value]['content'] = array(
+        '#markup' => reservation_admin_bookings_pending_bookings_row($value),
+      );
+      
+      // create a submit button
+      $form['booking-' . $value]['submit'] = array(
+        '#type' => 'submit',
+        '#value' => 'Vahvista',
+        '#name' => 'op-confirm-' . $key,
+        '#submit' => array('reservation_admin_bookings_confirm_booking'),
+      );
+    }
+  }
+  
+  return $form;
+}
+
+
+/**
+ * AJAX CALLBACKS
+ */
+
+/**
+ * Ajax callback - change location
+ */
+function reservation_admin_bookings_change_location($form, $form_state) {
+  return $form['container'];
+}
+
+
+/**
+ * Ajax callback - change store
+ */
+function reservation_admin_bookings_change_store($form, $form_state) {
+  return $form['container']['merchant'];
+}
+
+
+/**
+ * FORM VALIDATION
+ */
+
+/**
+ * Form validation - booking creation form
+ */
+function reservation_admin_bookings_create_form_validate($form, &$form_state) {
+  if (($employee = $form_state['values']['employee']) !== '0') { // an employee selected
+    // start time as a string
+    $start_str = $form_state['values']['date'] . ' ' 
+        . $form_state['values']['start_time'];
+    // start time as a timestamp
+    $start = strtotime($start_str);
+    
+    // end time as a string
+    $end_str = $form_state['values']['date'] . ' ' 
+        . $form_state['values']['end_time'];
+    // end time as a timestamp
+    $end = strtotime($end_str);
+    
+    if (reservation_utilities_is_collapsing($employee, $start, $end)) {
+      // the employee has a collapsing booking; set an error
+      form_set_error('employee', t('The selected employee has a collapsing '
+        . 'booking. Select another employee.'));
+    }
+    else if (reservation_utilities_is_reserved($employee, $start, $end)) {
+      // the employee has a collapsing reservation; set an error
+      form_set_error('employee', t('The selected employee has a collapsing '
+        . 'reservation. Select another employee.'));
+    }
+  }
+}
+
+
+/**
+ * FORM SUBMITS
+ */
+
+/**
+ * Form submit - booking creation form
+ */
+function reservation_admin_bookings_create_form_submit($form, &$form_state) {
+  // get submitted values
+  // get date as a timestamp
+  $date = strtotime($form_state['values']['date']);
+  // get date as a string
+  $date_string = $form_state['values']['date'];
+  
+  // get start time as a string
+  $start_string = $form_state['values']['start_time'];
+  // combine it with the date
+  $start_string = $date_string . ' ' . $start_string;
+  // get start time as a timestamp
+  $start = strtotime($start_string);
+  
+  // get end time as a string
+  $end_string = $form_state['values']['end_time'];
+  // combine it with the date
+  $end_string = $date_string . ' ' . $end_string;
+  // get end time as a timestamp
+  $end = strtotime($end_string);
+  
+  // get tid for location
+  $location_tid = $form_state['values']['location'];
+  // get tid for store
+  $store_tid = $form_state['values']['store'];
+  // get user id for merchant
+  $merchant_uid = $form_state['values']['merchant'];
+  // get user profile id for employee
+  $employee_profile_id = $form_state['values']['employee'];
+  // get tid for section
+  $section_tid = $form_state['values']['section'];
+  
+  // create a new booking entity
+  $entity_type = 'varaus';
+  $booking_entity = entity_create($entity_type, array('type' => $entity_type));
+  $booking_wrapper = entity_metadata_wrapper($entity_type, $booking_entity);
+  
+  // set entity properties
+  $booking_wrapper->uid = $merchant_uid;
+  $booking_wrapper->created = time();
+  $booking_wrapper->changed = time();
+  
+  // set entity field values
+  $booking_wrapper->field_slot_date->set($date);
+  $booking_wrapper->field_slot_start->set($start);
+  $booking_wrapper->field_slot_end->set($end);
+  $booking_wrapper->field_slot_state->set(2); // set state "confirmed"
+  $booking_wrapper->field_location_ref->set($location_tid);
+  $booking_wrapper->field_store->set($store_tid);
+  $booking_wrapper->field_section_ref->set($section_tid);
+  
+  if ($employee_profile_id != 0) { // an employee selected
+    $booking_wrapper->field_employee_ref->set($employee_profile_id);
+  }
+  
+  // save the entity
+  $booking_wrapper->save();
+  
+  // store name
+  $store = $booking_wrapper->field_store->label();
+  // section name
+  $section = $booking_wrapper->field_section_ref->label();
+  
+  if ($employee_profile_id != 0) {  // an employee selected
+    // prepare a message for the employee
+    $message = '<p style="font-size: 14px;"><span style="font-weight: bold;">'
+        . 'Alkaa:</span> ' . format_date($start, 'custom', 'd.m.Y H:i') . '</p>'
+        . '<p style="font-size: 14px;"><span style="font-weight: bold;">'
+        . 'Päättyy:</span> ' . format_date($end, 'custom', 'd.m.Y H:i') . '</p>'
+        . '<p style="font-size: 14px;"><span style="font-weight: bold;">'
+        . 'Kauppa:</span> ' . $store . '</p><p style="font-size: 14px;"><span '
+        . 'style="font-weight: bold;">Osasto:</span> ' . $section . '</p>';
+    
+    $params = array(
+      'subject' => 'Sinulle on lisätty työvuoro ' . format_date($date, 'custom', 
+          'd.m.Y'),
+      'body' => $message,
+    );
+    
+    // send message to the employee
+    $to = reservation_utilities_get_email_by_profile_id($employee_profile_id);
+    
+    // send email
+    /* drupal_mail('reservation_admin_bookings', 'booking_confirm_employee', $to, 
+        language_default(), $params, 'info@vuorokori.fi'); */
+  }
+  
+  // prepare a message for the merchant and admin
+  $message = '<p style="font-size: 14px;"><span style="font-weight: bold;">Alkaa:'
+      . '</span> ' . format_date($start, 'custom', 'd.m.Y H:i') . '</p><p style='
+      . '"font-size: 14px;"><span style="font-weight: bold;">Päättyy:</span> ' 
+      . format_date($end, 'custom', 'd.m.Y H:i') . '</p><p style="font-size: '
+      . '14px;"><span style="font-weight: bold;">Kauppa:</span> ' . $store 
+      . '</p><p style="font-size: 14px;"><span style="font-weight: bold;">Osasto:'
+      . '</span> ' . $section . '</p>';
+  
+  if ($employee_profile_id != 0) {  // an employee selected
+    // load user profile
+    $profile = profile2_load($employee_profile_id);
+    
+    // get name for the user
+    $name = $profile->field_nimi['und'][0]['value'];
+    
+    $message .= '<p style="font-size: 14px;"><span style="font-weight: bold;">'
+        . 'Työntekijä:</span> ' . $name . '</p>';
+  }
+    
+  $params = array(
+    'subject' => 'Työvuoro lisätty ' . format_date($date, 'custom', 'd.m.Y'),
+    'body' => $message,
+  );
+    
+  // send message to the merchant who made this booking and to admin
+  $uid = $booking_wrapper->uid->getIdentifier();
+  $to = reservation_utilities_get_email_by_user_id($uid) . ',' 
+      . variable_get('email', 'info@vuorokori.fi');
+  
+  // send email
+  /* drupal_mail('reservation_admin_bookings', 'booking_confirm_merchant_admin', 
+      $to, language_default(), $params, 'info@vuorokori.fi'); */
+  
+  $form_state['rebuild'] = TRUE;
+  
+  // get query parameters
+  $parameters = drupal_get_query_parameters();
+  
+  if (!empty($parameters) && isset($parameters['dest_path'])) { // destination set
+    // get destination path
+    $dest_path = $parameters['dest_path'];
+    // unset path from parameters
+    unset($parameters['dest_path']);
+    
+    // redirect after form submission to the destination with parameters
+    $form_state['redirect'] = array(
+      $dest_path,
+      array(
+        'query' => $parameters,
+      ),
+    );
+    
+    $form_state['rebuild'] = FALSE;
+  }
+  
+  drupal_set_message(t('Booking %bid confirmed', array('%bid' => 
+      $booking_wrapper->getIdentifier())));
+}
+
+
+
+/**
+ * HELPER FUNCTIONS FOR FORM CONSTRUCTION
+ */
+
+/**
+ * Creates markup for a pending booking row
+ * 
+ * @param int $booking_id - booking id
+ * 
+ * @return string - markup
+ */
+function reservation_admin_bookings_pending_bookings_row($booking_id) {
+  // load booking entity
+  $entity_type = 'varaus';
+  $booking_entity_array = entity_load($entity_type, array($booking_id));
+  $booking_entity = reset($booking_entity_array);
+  $booking_wrapper = entity_metadata_wrapper($entity_type, $booking_entity);
+  
+  // get booking date
+  $date = format_date($booking_wrapper->field_slot_date->value(), 'custom', 
+      'D d.m.Y');
+  
+  // get booking start
+  $start = format_date($booking_wrapper->field_slot_start->value(), 'custom', 
+      'H:i');
+  
+  // get booking end
+  $end = format_date($booking_wrapper->field_slot_end->value(), 'custom', 
+      'H:i');
+  
+  // get booking store
+  $store = $booking_wrapper->field_store->label();
+  
+  // get merchant uid
+  $uid = $booking_wrapper->uid->value();
+  
+  // load merchant profile
+  $profile_array = profile2_load_by_user($uid);
+  $profile = reset($profile_array);
+  $entity_type = 'profile2';
+  $profile_wrapper = entity_metadata_wrapper($entity_type, $profile);
+  
+  // get name
+  $name = $profile_wrapper->field_nimi->value();
+  
+  // return markup
+  return '<div class="content"><span class="booking-id">' . $booking_id 
+      . '</span><span class="date">' . $date . '</span><span class="start">' 
+      . $start . '</span><span class="end">' . $end . '</span><span class="name'
+      . '">' . $name . '</span><span class="store">' . $store . '</span></div>';
+}

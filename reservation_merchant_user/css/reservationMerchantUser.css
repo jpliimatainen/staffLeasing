@@ -1,0 +1,290 @@
+/* user registration form for merchants */
+#reservation-merchant-user-register-form {
+    float: left;
+    width: 600px;
+    margin-bottom: 30px;
+}
+
+#reservation-merchant-user-register-form .form-type-textfield,
+#reservation-merchant-user-register-form .form-type-password,
+#reservation-merchant-user-register-form .form-type-select,
+#reservation-merchant-user-register-form .form-type-textarea {
+    float: left;
+    width: 100%;
+}
+
+#reservation-merchant-user-register-form .form-type-textarea {
+    margin-bottom: 25px;
+}
+
+#reservation-merchant-user-register-form .form-submit {
+    float: left;
+    clear: both;
+    margin-top: 10px;
+}
+
+#reservation-merchant-user-register-form .form-item-location {
+    margin-bottom: 15px;
+}
+
+#reservation-merchant-user-register-form .form-item label {
+    margin-bottom: 5px;
+}
+
+#reservation-merchant-user-register-form .form-item-pass > label {
+    display: none;
+}
+
+#reservation-merchant-user-register-form .password-strength {
+    float: left;
+    margin-bottom: 40px;
+}
+
+#reservation-merchant-user-register-form .form-type-password label,
+#reservation-merchant-user-register-form .form-type-password input {
+    float: left;
+    clear: left;
+}
+
+#reservation-merchant-user-register-form input[type="text"] {
+    height: 25px;
+}
+
+#reservation-merchant-user-register-form select {
+    background-color: #fff;
+    padding: 10px;
+    text-align: center;
+    border: 1px solid #ddd;
+}
+
+#reservation-merchant-user-register-form .form-type-textfield input {
+    width: 500px;
+}
+
+#reservation-merchant-user-register-form .form-type-textarea textarea {
+    width: 520px;
+}
+
+/* My account page */
+.page-my-account #page-title {
+    display: none;
+}
+
+.page-my-account .tabs {
+    margin-top: 30px;
+}
+
+.page-my-account .tabs ul {
+    border: none;
+}
+
+.page-my-account .tabs ul li a {
+    border: none;
+    padding: 10px 20px;
+    background-color: #fff;
+    color: #000;
+    border-top-left-radius: 10px;
+    border-top-right-radius: 10px;
+}
+
+.page-my-account .tabs ul li a:visited {
+    color: #000;
+}
+
+.page-my-account .tabs ul li a.active {
+    background-color: #0092df;
+    color: #fff;
+}
+
+.page-my-account .tabs ul li a.active:visited {
+    color: #fff;
+}
+
+.page-my-account .tabs ul li a:hover {
+    background-color: #000;
+    color: #fff;
+}
+
+#my-account-page {
+    float: left;
+    width: 100%;
+}
+
+#my-account-page #merchant-name {
+    float: left;
+    width: 100%;
+    margin-top: 25px;
+    margin-bottom: 10px;
+    font-weight: bold;
+    font-size: 18px;
+}
+
+#my-account-page #merchant-locations {
+    float: left;
+    width: 100%;
+    font-size: 16px;
+}
+
+#my-account-page #merchant-locations ul li {
+    line-height: 24px;
+}
+
+#my-account-page #merchant-email {
+    float: left;
+    width: 100%;
+    margin-bottom: 10px;
+    font-size: 16px;
+}
+
+#my-account-page #merchant-phone {
+    float: left;
+    width: 100%;
+    font-size: 16px;
+}
+
+#my-account-page #stores {
+    float: left;
+    width: 100%;
+    margin-top: 10px;
+}
+
+#my-account-page #stores .caption {
+    font-size: 18px;
+    font-weight: bold;
+    margin-bottom: 10px;
+}
+
+#my-account-page #stores .store {
+    float: left;
+    width: 100%;
+    margin-bottom: 15px;
+}
+
+/* My account merchant edit page */
+#reservation-merchant-user-merchant-edit-form {
+    float: left;
+    width: 100%;
+    margin-top: 20px;
+    margin-left: 10px;
+}
+
+#reservation-merchant-user-merchant-edit-form .form-item-pass > label {
+    display: none;
+}
+
+#reservation-merchant-user-merchant-edit-form .form-item label {
+    font-size: 14px;
+    margin-bottom: 5px;
+}
+
+/* My account store edit page */
+#reservation-merchant-user-store-edit-form {
+    float: left;
+    width: 100%;
+    margin-top: 20px;
+    margin-left: 10px;
+}
+
+#reservation-merchant-user-store-edit-form .form-type-select select {
+    background-color: #fff;
+    padding: 10px;
+    text-align: center;
+    border: 1px solid #ddd;
+}
+
+#reservation-merchant-user-store-edit-form .form-item label {
+    font-size: 14px;
+    margin-bottom: 5px;
+}
+
+#reservation-merchant-user-store-edit-form textarea {
+    width: 605px;
+}
+
+
+/* My account store add page */
+#reservation-merchant-user-store-add-form {
+    float: left;
+    width: 100%;
+    margin-top: 20px;
+    margin-left: 10px;
+}
+
+#reservation-merchant-user-store-add-form #new-store,
+#reservation-merchant-user-store-add-form #existing-stores {
+    float: left;
+    width: 100%;
+    margin-bottom: 25px;
+}
+
+#reservation-merchant-user-store-add-form .form-type-select,
+#reservation-merchant-user-store-add-form .form-submit {
+    float: left;
+    clear: both;
+}
+
+#reservation-merchant-user-store-add-form .form-submit {
+    margin-bottom: 20px;
+}
+
+#reservation-merchant-user-store-add-form .form-type-select {
+    margin-bottom: 25px;
+}
+
+#reservation-merchant-user-store-add-form fieldset {
+    float: left;
+    width: 600px;
+}
+
+#reservation-merchant-user-store-add-form .form-item label {
+    margin-bottom: 5px;
+    font-size: 14px;
+}
+
+#reservation-merchant-user-store-add-form select {
+    background-color: #fff;
+    padding: 10px;
+    text-align: center;
+    border: 1px solid #ddd;
+}
+
+
+
+@media screen and (max-width: 720px) {
+    #reservation-merchant-user-register-form .form-item input[type="text"] {
+        width: 450px;
+    }
+    
+    #reservation-merchant-user-register-form #new-store .form-item-store-billing {
+        width: 460px;
+    }
+    
+    #reservation-merchant-user-register-form .confirm-parent, 
+    #reservation-merchant-user-register-form .password-parent {
+        width: 100%;
+    }
+    
+    #reservation-merchant-user-register-form .password-strength {
+        display: none;
+    }
+    
+    #reservation-merchant-user-register-form div.form-item div.password-suggestions {
+        width: 95%;
+    }
+    
+    #reservation-merchant-user-register-form div.password-confirm {
+        float: left;
+        width: 100%;
+        margin-top: 0;
+    }
+}
+
+@media screen and (max-width: 520px) {
+    #reservation-merchant-user-register-form .form-item input[type="text"] {
+        width: 280px;
+    }
+    
+    #reservation-merchant-user-register-form #new-store .form-item-store-billing {
+        width: 290px;
+    }
+}

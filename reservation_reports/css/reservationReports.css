@@ -1,0 +1,201 @@
+#reservation-reports-bookings-form {
+    float: left;
+    width: 100%;
+}
+
+#reservation-reports-bookings-form #start {
+    float: left;
+    margin-right: 20px;
+}
+
+#reservation-reports-bookings-form #end {
+    float: left;
+}
+
+#reservation-reports-bookings-form .form-item-store {
+    float: left;
+    margin-left: 15px;
+    margin-top: 0;
+    margin-bottom: 0;
+}
+
+#reservation-reports-bookings-form .form-item-employee {
+    float: left;
+    clear: left;
+    margin-top: 20px;
+    margin-bottom: 0;
+}
+
+#reservation-reports-bookings-form .form-type-date-popup .form-type-textfield > label,
+#reservation-reports-bookings-form .form-type-date-popup .form-type-textfield .description {
+    display: none;
+}
+
+#reservation-reports-bookings-form .form-type-date-popup .form-type-textfield input {
+    width: 120px;
+    font-size: 13px;
+}
+
+#reservation-reports-bookings-form .form-type-select select {
+    font-size: 13px;
+    background-color: #fff;
+    padding: 10px 20px;
+    border: 1px solid #ccc;
+}
+
+#reservation-reports-bookings-form .form-item label {
+    font-size: 14px;
+    margin-bottom: 5px;
+}
+
+#reservation-reports-bookings-form .form-submit {
+    float: left;
+    margin-left: 25px;
+    margin-top: 23px;
+}
+
+#reservation-reports-bookings-form .report-data,
+#reservation-reports-bookings-form .report-data .month {
+    float: left;
+    width: 100%;
+}
+
+#reservation-reports-bookings-form .report-data {
+    margin-top: 25px;
+}
+
+#reservation-reports-bookings-form .report-data .month .caption {
+    font-size: 18px;
+    font-weight: bold;
+    margin-bottom: 15px;
+    margin-left: 10px;
+}
+
+#reservation-reports-bookings-form .report-data .month-wrapper {
+    float: left;
+    padding: 20px;
+    background-color: #fff;
+    margin-bottom: 25px;
+}
+
+#reservation-reports-bookings-form .report-data span {
+    float: left;
+    font-size: 14px;
+}
+
+#reservation-reports-bookings-form .report-data .header,
+#reservation-reports-bookings-form .report-data .booking-item {
+    float: left;
+    clear: both;
+    margin-bottom: 10px;
+}
+
+#reservation-reports-bookings-form .report-data .header {
+    margin-top: 10px;
+}
+
+#reservation-reports-bookings-form .report-data .header span {
+    font-weight: bold;
+}
+
+#reservation-reports-bookings-form .report-data .booking-id {
+    width: 80px;
+}
+
+#reservation-reports-bookings-form .report-data .date {
+    width: 110px;
+}
+
+#reservation-reports-bookings-form .report-data .start {
+    width: 70px;
+}
+
+#reservation-reports-bookings-form .report-data .end {
+    width: 70px;
+}
+
+#reservation-reports-bookings-form .report-data .duration {
+    width: 110px;
+}
+
+#reservation-reports-bookings-form .report-data .store {
+    width: 220px;
+}
+
+#reservation-reports-bookings-form .report-data .employee {
+    width: 180px;
+}
+
+#reservation-reports-bookings-form .report-data .day-total,
+#reservation-reports-bookings-form .report-data .day-evening,
+#reservation-reports-bookings-form .report-data .day-sat,
+#reservation-reports-bookings-form .report-data .day-special {
+    float: left;
+    clear: both;
+    margin-bottom: 10px;
+    font-size: 16px;
+    font-weight: bold;
+}
+
+#reservation-reports-bookings-form .report-data .day-total {
+    margin-top: 5px;
+}
+
+#reservation-reports-bookings-form .report-data .day-total .label,
+#reservation-reports-bookings-form .report-data .day-evening .label,
+#reservation-reports-bookings-form .report-data .day-sat .label,
+#reservation-reports-bookings-form .report-data .day-special .label {
+    margin-right: 15px;
+}
+
+#reservation-reports-bookings-form .report-data .month-total,
+#reservation-reports-bookings-form .report-data .month-evening,
+#reservation-reports-bookings-form .report-data .month-sat,
+#reservation-reports-bookings-form .report-data .month-special {
+    float: left;
+    clear: both;
+    margin-top: 15px;
+}
+
+#reservation-reports-bookings-form .report-data .month-total span,
+#reservation-reports-bookings-form .report-data .month-evening span,
+#reservation-reports-bookings-form .report-data .month-sat span,
+#reservation-reports-bookings-form .report-data .month-special span {
+    font-size: 18px;
+    font-weight: bold;
+}
+
+#reservation-reports-bookings-form .report-data .month-total .label,
+#reservation-reports-bookings-form .report-data .month-evening .label,
+#reservation-reports-bookings-form .report-data .month-sat .label,
+#reservation-reports-bookings-form .report-data .month-special .label {
+    margin-right: 15px;
+}
+
+#reservation-reports-bookings-form .download-csv {
+    float: left;
+    margin-top: 10px;
+    margin-bottom: 20px;
+}
+
+#reservation-reports-bookings-form .download-csv a {
+    padding: 10px 20px;
+    background-color: #0077df;
+    color: #fff;
+    text-transform: uppercase;
+    text-decoration: none;
+    font-size: 15px;
+}
+
+#reservation-reports-bookings-form .download-csv a:visited {
+    color: #fff;
+}
+
+#reservation-reports-bookings-form .download-csv a:hover {
+    background-color: #000;
+}
+
+#reservation-reports-bookings-form input#edit-pdf {
+    float: left;
+    margin: 0 0 20px 40px;
+}

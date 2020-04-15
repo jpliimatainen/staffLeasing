@@ -1,0 +1,4 @@
+name = Reservation Utilities
+description = Provides utility functions for the reservation system
+package = Reservation System
+core = 7.x

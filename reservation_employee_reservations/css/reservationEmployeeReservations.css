@@ -1,0 +1,79 @@
+.page-lisaa-toive #page-title {
+    display: none;
+}
+
+/* Create a reservation form */
+.page-lisaa-toive #block-system-main {
+    float: left;
+    clear: left;
+    width: 500px;
+    padding: 0 20px 20px 20px;
+    border: 1px solid #ccc;
+}
+
+.page-lisaa-toive #block-system-main form {
+    float: left;
+    width: 100%;
+}
+
+.page-lisaa-toive #block-system-main form h1 {
+    margin-top: 0;
+    margin-bottom: 20px;
+    font-size: 2em;
+}
+
+.page-lisaa-toive #block-system-main form .container-inline-date {
+    float: left;
+    clear: none;
+    margin-bottom: 25px;
+}
+
+.page-lisaa-toive #block-system-main form .form-item-start-time-date, 
+.page-lisaa-toive #block-system-main form .form-item-end-time-date {
+    margin-right: 15px;
+} 
+
+.page-lisaa-toive #block-system-main form .form-type-textfield input {
+    border-radius: 0;
+    border: 1px solid #ddd;
+}
+
+.page-lisaa-toive #block-system-main form .form-item-start-time input,
+.page-lisaa-toive #block-system-main form .form-item-end-time input {
+    padding: 5px 0;
+    text-align: center;
+    width: 130px;
+}
+
+.page-lisaa-toive #block-system-main form .form-item-start-time-date label, 
+.page-lisaa-toive #block-system-main form .form-item-end-time-date label, 
+.page-lisaa-toive #block-system-main form .form-item-start-time-time label, 
+.page-lisaa-toive #block-system-main form .form-item-end-time-time label, 
+.page-lisaa-toive #block-system-main form .form-item-start-time .description,
+.page-lisaa-toive #block-system-main form .form-item-end-time .description {
+    display: none;
+}
+
+.page-lisaa-toive #block-system-main form .form-item-extra-info {
+    float: left;
+    clear: left;
+    margin-top: 20px;
+}
+
+.page-lisaa-toive #block-system-main form .form-item label {
+    font-size: 14px;
+    margin-bottom: 10px;
+}
+
+.page-lisaa-toive #block-system-main form .form-submit {
+    float: left;
+    clear: left;
+    width: 440px;
+    margin-top: 15px;
+    margin-bottom: 10px;
+    text-transform: none;
+    text-align: center;
+    padding: 15px 0 17px 0;
+    background: #0077df url('../../reservation_merchant/images/calendar.png') no-repeat 120px 15px;
+    font-size: 16px;
+}

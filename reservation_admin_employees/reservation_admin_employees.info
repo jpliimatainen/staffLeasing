@@ -1,0 +1,9 @@
+name = Reservation Admin Employees
+description = Provides functions for employee management by admins
+package = Reservation System
+core = 7.x
+
+dependencies[] = reservation_utilities
+dependencies[] = reservation_employee_user
+
+stylesheets[all][] = css/reservationAdminEmployees.css

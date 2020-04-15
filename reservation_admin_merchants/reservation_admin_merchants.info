@@ -1,0 +1,8 @@
+name = Reservation Admin Merchants
+description = Provides functions for merchants and stores management by admins
+package = Reservation System
+core = 7.x
+
+dependencies[] = reservation_utilities
+
+stylesheets[all][] = css/reservationAdminMerchants.css

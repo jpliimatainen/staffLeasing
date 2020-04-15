@@ -1,0 +1,1132 @@
+<?php
+
+/**
+ * @file reservation_reports.module
+ * Provides reporting for bookings
+ */
+
+/**
+ * Implements hook_permission
+ */
+function reservation_reports_permission() {
+  return array(
+    'administer reservation reports' => array(
+      'title' => t('Admister reservation reports'),
+      'descripiton' => t('Execute administrative tasks for reservation reports'),
+    ),
+  );
+}
+
+
+/**
+ * Implements hook_page_alter()
+ */
+function reservation_reports_page_alter(&$page) {
+  if (isset($_SESSION['messages']['error'])) { 
+    // error message(s) set
+    $needle1 = '<em class="placeholder">Notice</em>: A non well formed numeric '
+        . 'value encountered';
+    
+    $needle2 = '<em class="placeholder">Deprecated function</em>: The each() '
+        . 'function is deprecated.';
+    
+    foreach ($_SESSION['messages']['error'] as $key => $value) {
+      if (strpos($value, $needle1) === 0 || strpos($value, $needle2) === 0) { // mpdf error
+        // remove error message
+        unset($_SESSION['messages']['error'][$key]);
+      }
+    }
+    if (empty($_SESSION['messages']['error'])) { // empty error message container
+      unset($_SESSION['messages']['error']); 
+    }
+  }
+}
+
+
+/**
+ * Implements hook_menu()
+ */
+function reservation_reports_menu() {
+  $items = array();
+  
+  $items['varausraportti'] = array(
+    'title' => 'Tuntiraportti',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('reservation_reports_bookings_form'),
+    'access callback' => 'user_is_logged_in',
+    'type' => MENU_NORMAL_ITEM,
+  );
+  
+  $items['varausraportti/csv'] = array(
+    'title' => 'Varausraportti CSV',
+    'page callback' => 'reservation_reports_bookings_csv',
+    'access callback' => 'user_is_logged_in',
+    'type' => MENU_CALLBACK,
+  );
+  
+  return $items;
+}
+
+
+/**
+ * PAGE CALLBACKS
+ */
+
+/**
+ * Page callback - booking report CSV
+ */
+function reservation_reports_bookings_csv() {
+  global $user;
+  $uids = array($user->uid);
+  $stores = array();
+  
+  $month_total_counter = 0;
+  $month_evening_counter = 0;
+  $month_sat_counter = 0;
+  $month_special_counter = 0;
+  
+  $day_total_counter = 0;
+  $day_evening_counter = 0;
+  $day_sat_counter = 0;
+  $day_special_counter = 0;
+  
+  // get query parameters
+  $parameters = drupal_get_query_parameters();
+  
+  if (isset($parameters['start'])) { // start date set
+    $start = strtotime($parameters['start']);
+  }
+  else { // start not set; use the first day of this month as a default value
+    $start = strtotime("first day of this month");
+  }
+  
+  if (isset($parameters['end'])) { // end date set
+    $end = strtotime($parameters['end']);
+  }
+  else { // end not set; use the last day of this month as a default value
+    $end = strtotime("last day of this month");
+  }
+  
+  if (reservation_utilities_is_merchant()) { // a merchant
+    $employees = array(); // bookings for all employees
+  
+    if (isset($parameters['store'])) { // store selected
+      if ($parameters['store'] != 0) { // not "all stores" selected
+        $stores = array($parameters['store']);
+      }
+    }
+    else { 
+      // get stores for the current merchant
+      $stores_current = reservation_utilities_get_stores();
+      foreach ($stores_current as $key => $value) {
+        // use the first store as a default value
+        $stores = array($key);
+        break;
+      }
+    }
+  }
+  else if (reservation_utilities_is_employee()) { // an employee
+    $employees = array(reservation_utilities_get_profile_id_by_uid($user->uid)); // employee profile id
+    $uids = array(); // get all bookings
+  }
+  else if (reservation_utilities_is_admin_or_clerk()) { // an admin or clerk
+    $uids = array(); // get all bookings
+    if (isset($parameters['employee'])) { 
+      // an employee selected
+      $employees = array($parameters['employee']);
+    }
+    else {
+      $employees = array(); // bookings for all employees
+    }
+    if (isset($parameters['store'])) { 
+      // a store selected
+      $stores = array($parameters['store']);
+    }
+    if (isset($parameters['merchant'])) { 
+      // a merchant selected; select bookings for this merchant
+      $uids = array($parameters['merchant']);
+    }
+  }
+  else { // unauthorized user; return
+    return;
+  }
+  
+  // get bookings data
+  $data = reservation_reports_get_bookings($uids, $start, $end, $stores, 
+      $employees);
+  
+  if (!empty($data)) {
+    // set column titles
+    $titles = array('Varaus ID', 'Pvm', 'Alkaa', 'Päättyy', 'Kesto', 'Kauppa', 
+        'Työntekijä');
+    
+    // set http headers
+    drupal_add_http_header('Content-Type', 'text/csv; utf-8');
+    drupal_add_http_header('Content-Disposition', 'attachment; filename = '
+        . 'bookings.csv');
+    
+    // create output stream
+    $handle = fopen('php://output', 'w');
+    
+    // write data
+    foreach ($data as $month => $item) {
+      // reset month counters for duration
+      $month_total_counter = 0;
+      $month_evening_counter = 0;
+      $month_sat_counter = 0;
+      $month_special_counter = 0;
+      
+      // write month title
+      fputcsv($handle, array($month, '', '', '', '', '', ''));
+      // write an empty row
+      fputcsv($handle, array('', '', '', '', '', '', ''));
+      foreach ($item as $day => $item2) {
+        // reset day counters for duration
+        $day_total_counter = 0;
+        $day_evening_counter = 0;
+        $day_sat_counter = 0;
+        $day_special_counter = 0;
+        
+        // write day title
+        fputcsv($handle, array($day, '', '', '', '', '', ''));
+        // write titles
+        fputcsv($handle, $titles);
+        foreach ($item2 as $delta => $booking_item) {
+          // write data
+          fputcsv($handle, array(
+            $booking_item['id'], 
+            format_date($booking_item['start'], 'custom', 'D d.m.Y'), 
+            format_date($booking_item['start'], 'custom', 'H:i'), 
+            format_date($booking_item['end'], 'custom', 'H:i'), 
+            reservation_utilities_format_interval($booking_item['duration']), 
+            $booking_item['store'],
+            $booking_item['employee'],
+          ));
+          
+          // update counters
+          $month_total_counter += $booking_item['duration'];
+          $day_total_counter += $booking_item['duration'];
+        
+          if (format_date($booking_item['start'], 'custom', 'D') === 'Su' || 
+              reservation_reports_is_special_day($booking_item['start'])) { 
+            // Sunday or a special day
+            $month_special_counter += $booking_item['real_duration'];
+            $day_special_counter += $booking_item['real_duration'];
+          }
+          else if (format_date($booking_item['start'], 'custom', 'D') === 'La') { // Saturday
+            // get start hour for a booking
+            $start_hour = intval(format_date($booking_item['start'], 'custom', 'G'));
+            // get start minute for a booking
+            $start_minute = intval(format_date($booking_item['start'], 'custom', 'i'));
+            // get end hour for a booking
+            $end_hour = intval(format_date($booking_item['end'], 'custom', 'G'));
+            // get end minute for a booking
+            $end_minute = intval(format_date($booking_item['end'], 'custom', 'i'));
+          
+            if ($start_hour >= 13) { // start time at or later than 1pm
+              $month_sat_counter += $booking_item['real_duration'];
+              $day_sat_counter += $booking_item['real_duration'];
+            }
+            else if ($end_hour > 13 || ($end_hour == 13 && $end_minute > 0)) { 
+              // end time later than 1pm
+              // get timestamp for the day at 1pm
+              $timestamp_one_pm = strtotime(format_date($booking_item['start'], 
+                  'custom', 'Y-m-d') . '13:00');
+              // calculate difference between the end and 1pm
+              $diff_end = $booking_item['end'] - $timestamp_one_pm;
+              // increment counters
+              $month_sat_counter += $diff_end;
+              $day_sat_counter += $diff_end;
+            }
+          }
+          else { // Mon-Fri
+            // get start hour for a booking
+            $start_hour = intval(format_date($booking_item['start'], 'custom', 'G'));
+            // get start minute for a booking
+            $start_minute = intval(format_date($booking_item['start'], 'custom', 'i'));
+            // get end hour for a booking
+            $end_hour = intval(format_date($booking_item['end'], 'custom', 'G'));
+            // get end minute for a booking
+            $end_minute = intval(format_date($booking_item['end'], 'custom', 'i'));
+          
+            if ($start_hour >= 18) { // start time at or later than 6pm
+              $month_evening_counter += $booking_item['real_duration'];
+              $day_evening_counter += $booking_item['real_duration'];
+            }
+            else if ($end_hour > 18 || ($end_hour == 18 && $end_minute > 0)) { 
+              // end time later than 6pm
+              // get timestamp for the day at 6pm
+              $timestamp_six_pm = strtotime(format_date($booking_item['start'], 
+                  'custom', 'Y-m-d') . '18:00');
+              // calculate difference between the end and 6pm
+              $diff_end = $booking_item['end'] - $timestamp_six_pm;
+
+              // increment counters
+              $month_evening_counter += $diff_end;
+              $day_evening_counter += $diff_end;
+            }
+          }
+        }
+        // write day total
+        fputcsv($handle, array('Perustunnit ' . $day, '', '', '', 
+            reservation_utilities_format_interval($day_total_counter), '', ''));
+        
+        if ($day_evening_counter > 0) { 
+          // write weekday hours after 6pm
+          fputcsv($handle, array('Arki-ilta (klo 18-) ' . $day, '', '', '', 
+              reservation_utilities_format_interval($day_evening_counter), '', 
+              ''));
+        }
+        if ($day_sat_counter > 0) { 
+          // write Saturday hours after 1pm
+          fputcsv($handle, array('La-ilta (klo 13-) ' . $day, '', '', '', 
+              reservation_utilities_format_interval($day_sat_counter), '', ''));
+        }
+        if ($day_special_counter > 0) { 
+          // write Sunday and special day hours
+          fputcsv($handle, array('Sunnuntai/Pyhä ' . $day, '', '', '', 
+              reservation_utilities_format_interval($day_special_counter), '', 
+              ''));
+        }
+        // write an empty row
+        fputcsv($handle, array('', '', '', '', '', '', ''));
+      }
+      // write month total
+      fputcsv($handle, array('Perustunnit ' . $month, '', '', '', 
+            reservation_utilities_format_interval($month_total_counter), '', ''));
+      
+      if ($month_evening_counter > 0) { 
+        // write weekday hours after 6pm
+        fputcsv($handle, array('Arki-ilta (klo 18-) ' . $month, '', '', '', 
+            reservation_utilities_format_interval($month_evening_counter), '', 
+            ''));
+      }
+      if ($month_sat_counter > 0) { 
+        // write Saturday hours after 1pm
+        fputcsv($handle, array('La-ilta (klo 13-) ' . $month, '', '', '', 
+            reservation_utilities_format_interval($month_sat_counter), '', ''));
+      }
+      if ($month_special_counter > 0) { 
+        // write Sunday and special day hours
+        fputcsv($handle, array('Sunnuntai/Pyhä ' . $month, '', '', '', 
+            reservation_utilities_format_interval($month_special_counter), '', 
+            ''));
+      }
+      
+      // write an empty row
+      fputcsv($handle, array('', '', '', '', '', '', ''));
+      // write an empty row
+      fputcsv($handle, array('', '', '', '', '', '', ''));
+    }
+    // close the stream
+    fclose($handle);
+  }
+}
+
+
+/**
+ * FORM CALLBACKS
+ */
+
+/**
+ * Form callback - booking reports form
+ */
+function reservation_reports_bookings_form($form, &$form_state) {
+  global $user;
+  $uids = array($user->uid);
+  
+  $form = array();
+  $stores = array();
+  
+  // get query parameters
+  $parameters = drupal_get_query_parameters();
+  
+  if (isset($parameters['start'])) { // start date set
+    $start = $parameters['start'];
+  }
+  else { // start not set; use the first day of this month as the default value
+    $start = format_date(strtotime("first day of this month"), 'custom', 'Y-m-d');
+  }
+  
+  if (isset($parameters['end'])) { // end date set
+    $end = $parameters['end'];
+  }
+  else { // end not set; use the last day of this month as the default value
+    $end = format_date(strtotime("last day of this month"), 'custom', 'Y-m-d');
+  }
+  
+  if (reservation_utilities_is_merchant()) { // a merchant
+    $employees = array(); // bookings for all employees
+    // get stores for the current merchant
+    $stores_current = reservation_utilities_get_stores();
+    $stores_current += array(0 => 'Kaikki');
+    
+    if (isset($parameters['store'])) { // store set
+      if ($parameters['store'] != 0) { // not "all stores" selected
+        $stores = array($parameters['store']);
+      }
+      $store = $parameters['store'];
+    }
+    else { // use the first store as a default value
+      foreach ($stores_current as $key => $value) {
+        $stores = array($key);
+        $store = $key;
+        break;
+      }
+    }
+  }
+  else if (reservation_utilities_is_employee()) { // an employee
+    $employees = array(reservation_utilities_get_profile_id_by_uid($user->uid)); // employee profile id
+    $uids = array(); // get all bookings
+  }
+  else if (reservation_utilities_is_admin_or_clerk()) { // an admin or clerk
+    $uids = array(); // get all bookings
+    if (isset($parameters['employee'])) { 
+      // an employee selected
+      $employees = array($parameters['employee']);
+    }
+    else {
+      $employees = array(); // bookings for all employees
+    }
+    if (isset($parameters['store'])) { 
+      // a store selected
+      $stores = array($parameters['store']);
+    }
+    if (isset($parameters['merchant'])) { 
+      // a merchant selected; select bookings for this merchant
+      $uids = array($parameters['merchant']);
+    }
+  }
+  else { // unauthorized user; return an empty form
+    return $form;
+  }
+  
+  // start date for the report
+  $form['start'] = array(
+    '#type' => 'date_popup',
+    '#title' => 'Alkaen',
+    '#date_format' => 'd.m.Y',
+    '#date_year_range' => '-3:+3',
+    '#default_value' => $start,
+    '#required' => TRUE,
+    '#prefix' => '<div id="start">',
+    '#suffix' => '</div>',
+  );
+  
+  // end date for the report
+  $form['end'] = array(
+    '#type' => 'date_popup',
+    '#title' => 'Päättyen',
+    '#date_format' => 'd.m.Y',
+    '#date_year_range' => '-3:+3',
+    '#default_value' => $end,
+    '#required' => TRUE,
+    '#prefix' => '<div id="end">',
+    '#suffix' => '</div>',
+  );
+  
+  if (reservation_utilities_is_merchant()) {
+    // store selection
+    $form['store'] = array(
+      '#type' => 'select',
+      '#title' => 'Kauppa',
+      '#options' => $stores_current,
+      '#default_value' => $store,
+    );
+  }
+  
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Select'),
+  );
+  
+  // markup for the bookings
+  $markup = reservation_reports_bookings_markup($uids, strtotime($start), 
+      strtotime($end), $stores, $employees);
+  
+  $form['bookings'] = array(
+    '#markup' => $markup,
+    '#prefix' => '<div class="report-data">',
+    '#suffix' => '</div>',
+  );
+  
+  if ($markup !== '<h3>Ei varauksia</h3>') {
+    // set parameters if not yet set
+    if (!isset($parameters['start'])) {
+      $parameters['start'] = $start;
+    }
+    if (!isset($parameters['end'])) {
+      $parameters['end'] = $end;
+    }
+  
+    // download csv link
+    $form['csv'] = array(
+      '#markup' => '<a href="varausraportti/csv/?' . drupal_http_build_query(
+          $parameters) . '" target="_blank">Lataa CSV</a>',
+      '#prefix' => '<div class="download-csv">',
+      '#suffix' => '</div>',
+    );
+    
+    // download pdf 
+    $form['pdf'] = array(
+      '#type' => 'submit',
+      '#value' => 'Lataa PDF',
+      '#submit' => array('reservation_reports_pdf'),
+    );
+  }
+  
+  return $form;
+}
+
+
+/**
+ * FORM SUBMITS
+ */
+
+/**
+ * Form submit - booking reports form
+ */
+function reservation_reports_bookings_form_submit($form, &$form_state) {
+  // get start date
+  $start = $form_state['values']['start'];
+  // get end date
+  $end = $form_state['values']['end'];
+  
+  if (reservation_utilities_is_merchant()) {
+    // get store
+    $store = $form_state['values']['store'];
+  }
+  
+  // get query parameters
+  $parameters = drupal_get_query_parameters();
+  
+  // update parameters
+  $parameters['start'] = $start;
+  $parameters['end'] = $end;
+  if (reservation_utilities_is_merchant()) {
+    $parameters['store'] = $store;
+  }
+  
+  // redirect with query parameters
+  $form_state['redirect'] = array(
+    'varausraportti',
+    array(
+      'query' => $parameters,
+    ),
+  );
+}
+
+
+/**
+ * Form submit - create a PDF report
+ */
+function reservation_reports_pdf($form, &$form_state) {
+  global $user;
+  $uids = array($user->uid);
+  $stores = array();
+  
+  $markup = '';
+  
+  // get start date
+  $start = $form_state['values']['start'];
+  // get end date
+  $end = $form_state['values']['end'];
+  
+  // get query parameters
+  $parameters = drupal_get_query_parameters();
+  
+  if (reservation_utilities_is_merchant()) {
+    if ($form_state['values']['store'] != 0) { // not "all stores" selected
+      // get store
+      $stores = array($form_state['values']['store']);
+    }
+    $employees = array(); // bookings for all employees
+  }
+  else if (reservation_utilities_is_employee()) {
+    $employees = array(reservation_utilities_get_profile_id_by_uid($user->uid)); // employee profile id
+    $uids = array(); // get all bookings
+  }
+  else if (reservation_utilities_is_admin_or_clerk()) { // an admin or clerk
+    $uids = array(); // get all bookings
+    if (isset($parameters['employee'])) { 
+      // an employee selected
+      $employees = array($parameters['employee']);
+    }
+    else {
+      $employees = array(); // bookings for all employees
+    }
+    
+    if (isset($parameters['store'])) { 
+      // a store selected
+      $stores = array($parameters['store']);
+    }
+    
+    if (isset($parameters['merchant'])) { 
+      // a merchant selected; select bookings for this merchant
+      $uids = array($parameters['merchant']);
+    }
+  }
+  else { // unauthorized user; return
+    return;
+  }
+  
+  // markup for the bookings
+  $markup = reservation_reports_bookings_markup($uids, strtotime($start), 
+      strtotime($end), $stores, $employees, TRUE);
+  
+  
+  pdf_using_mpdf_api($markup, 'tuntiraportti');
+}
+
+
+/**
+ * HELPER FUNCTIONS
+ */
+
+/**
+ * Helper function - markup for bookings report
+ * 
+ * @param array $uids - merchant user ids (default: empty (all))
+ * @param int $start - timestamp for start date (default: NULL)
+ * @param int $end - timestamp for end date (default: NULL)
+ * @param array $stores - bookings for stores (default: empty (all))
+ * @param array $employees - bookings for employees (default: empty (all))
+ * @param boolean $pdf - whether pdf markup is generated (default: FALSE)
+ * 
+ * @return string - markup
+ */
+function reservation_reports_bookings_markup($uids = array(), $start = NULL, 
+    $end = NULL, $stores = array(), $employees = array(), $pdf = FALSE) {
+  
+  $markup = '';
+  
+  $month_total_counter = 0;
+  $month_evening_counter = 0;
+  $month_sat_counter = 0;
+  $month_special_counter = 0;
+  
+  $day_total_counter = 0;
+  $day_evening_counter = 0;
+  $day_sat_counter = 0;
+  $day_special_counter = 0;
+  
+  // get bookings data in a structured format
+  $data = reservation_reports_get_bookings($uids, $start, $end, $stores, 
+      $employees);
+  
+  if (empty($data)) { // no bookings for this user
+    return '<h3>Ei varauksia</h3>';
+  }
+  
+  if ($pdf) { // generate pdf
+    $markup = '<h1>Tuntiraportti</h1>';
+  }
+  
+  // create markup for a month
+  foreach ($data as $month => $month_data) {
+    // reset month counters for duration
+    $month_total_counter = 0;
+    $month_evening_counter = 0;
+    $month_sat_counter = 0;
+    $month_special_counter = 0;
+    
+    if ($pdf) {
+      $markup .= '<div style="margin-bottom: 20px;"><div style="font-size: 16px;'
+          . ' font-weight: bold; margin-bottom: 10px;">' . $month . '</div>';
+    }
+    else {
+      $markup .= '<div class="month"><div class="caption">' . $month . '</div>'
+          . '<div class="month-wrapper">';
+    }
+    
+    // create markup for a day
+    foreach ($month_data as $day => $day_data) {
+      // reset day counters for duration
+      $day_total_counter = 0;
+      $day_evening_counter = 0;
+      $day_sat_counter = 0;
+      $day_special_counter = 0;
+      
+      if ($pdf) {
+        $markup .= '<div style="margin-bottom: 15px;"><table><thead style="font-'
+            . 'weight: bold;"><tr><th style="text-align: left; padding-right: '
+            . '10px; font-size: 12px;">Varaus ID</th><th style="text-align: left;'
+            . ' padding-right: 10px; font-size: 12px;">Pvm</th><th style="text-'
+            . 'align: left; padding-right: 10px; font-size: 12px;">Alkaa</th><th'
+            . ' style="text-align: left; padding-right: 10px; font-size: 12px;">'
+            . 'Päättyy</th><th style="text-align: left; padding-right: 10px; '
+            . 'font-size: 12px;">Kesto</th><th style="text-align: left; padding-'
+            . 'right: 10px; font-size: 12px;">Kauppa</th><th style="text-align: '
+            . 'left; padding-right: 10px; font-size: 12px;">Työntekijä</th></tr>'
+            . '</thead><tbody>';
+      }
+      else {
+        $markup .= '<div class="header"><span class="booking-id">Varaus ID'
+            . '</span><span class="date">Pvm</span><span class="start">Alkaa'
+            . '</span><span class="end">Päättyy</span><span class="duration">'
+            . 'Kesto</span><span class="store">Kauppa</span><span class="'
+            . 'employee">Työntekijä</span></div>';
+      }
+      
+      // create markup for a booking item
+      foreach ($day_data as $delta => $booking_item) {
+        if ($pdf) {
+          $markup .= '<tr><td style="font-size: 12px;">' . $booking_item['id'] 
+              . '</td><td style="font-size: 12px;">' . format_date(
+              $booking_item['start'], 'custom', 'D d.m.Y') . '</td><td style="'
+              . 'font-size: 12px;">' . format_date($booking_item['start'], 
+              'custom', 'H:i') . '</td><td style="font-size: 12px;">' 
+              . format_date($booking_item['end'], 'custom', 'H:i') . '</td><td '
+              . 'style="font-size: 12px;">' . reservation_utilities_format_interval(
+              $booking_item['duration']) . '</td><td style="font-size: 12px;">' 
+              . $booking_item['store'] . '</td><td style="font-size: 12px;">' 
+              . $booking_item['employee'] . '</td></tr>';
+        }
+        else {
+          $markup .= '<div class="booking-item"><span class="booking-id">' 
+              . $booking_item['id'] . '</span><span class="date">' . format_date(
+              $booking_item['start'], 'custom', 'D d.m.Y') . '</span><span class'
+              . '="start">' . format_date($booking_item['start'], 'custom', 
+              'H:i') . '</span><span class="end">' . format_date(
+              $booking_item['end'], 'custom', 'H:i') . '</span><span class="'
+              . 'duration">' . reservation_utilities_format_interval(
+              $booking_item['duration']) . '</span><span class="store">' 
+              . $booking_item['store'] . '</span><span class="employee">' 
+              . $booking_item['employee'] . '</span></div>';
+        }
+        
+        // update counters
+        $month_total_counter += $booking_item['duration'];
+        $day_total_counter += $booking_item['duration'];
+        
+        if (format_date($booking_item['start'], 'custom', 'D') === 'Su' || 
+            reservation_reports_is_special_day($booking_item['start'])) { 
+          // Sunday or a special day
+          $month_special_counter += $booking_item['real_duration'];
+          $day_special_counter += $booking_item['real_duration'];
+        }
+        else if (format_date($booking_item['start'], 'custom', 'D') === 'La') { // Saturday
+          // get start hour for a booking
+          $start_hour = intval(format_date($booking_item['start'], 'custom', 'G'));
+          // get start minute for a booking
+          $start_minute = intval(format_date($booking_item['start'], 'custom', 'i'));
+          // get end hour for a booking
+          $end_hour = intval(format_date($booking_item['end'], 'custom', 'G'));
+          // get end minute for a booking
+          $end_minute = intval(format_date($booking_item['end'], 'custom', 'i'));
+          
+          if ($start_hour >= 13) { // start time at or later than 1pm
+            $month_sat_counter += $booking_item['real_duration'];
+            $day_sat_counter += $booking_item['real_duration'];
+          }
+          else if ($end_hour > 13 || ($end_hour == 13 && $end_minute > 0)) { 
+            // end time later than 1pm
+            // get timestamp for the day at 1pm
+            $timestamp_one_pm = strtotime(format_date($booking_item['start'], 
+                'custom', 'Y-m-d') . '13:00');
+            // calculate difference between the end and 1pm
+            $diff_end = $booking_item['end'] - $timestamp_one_pm;
+            
+            // increment counters
+            $month_sat_counter += $diff_end;
+            $day_sat_counter += $diff_end;
+          }
+        }
+        else { // Mon-Fri
+          // get start hour for a booking
+          $start_hour = intval(format_date($booking_item['start'], 'custom', 'G'));
+          // get start minute for a booking
+          $start_minute = intval(format_date($booking_item['start'], 'custom', 'i'));
+          // get end hour for a booking
+          $end_hour = intval(format_date($booking_item['end'], 'custom', 'G'));
+          // get end minute for a booking
+          $end_minute = intval(format_date($booking_item['end'], 'custom', 'i'));
+          
+          if ($start_hour >= 18) { // start time at or later than 6pm
+            $month_evening_counter += $booking_item['real_duration'];
+            $day_evening_counter += $booking_item['real_duration'];
+          }
+          else if ($end_hour > 18 || ($end_hour == 18 && $end_minute > 0)) { 
+            // end time later than 6pm
+            // get timestamp for the day at 6pm
+            $timestamp_six_pm = strtotime(format_date($booking_item['start'], 
+                'custom', 'Y-m-d') . '18:00');
+            // calculate difference between the end and 6pm
+            $diff_end = $booking_item['end'] - $timestamp_six_pm;
+
+            // increment counters
+            $month_evening_counter += $diff_end;
+            $day_evening_counter += $diff_end;
+          }
+        }
+      }
+      
+      if ($pdf) {
+        $markup .= '</tbody></table>';
+      }
+      
+      if ($pdf) {
+        // set total duration for the day
+        $markup .= '<div style="font-size: 13px; font-weight: bold; margin-top: '
+            . '10px; margin-bottom: 10px;">Perustunnit ' 
+            . reservation_utilities_format_interval($day_total_counter) . '</div>';
+      }
+      else {
+        // set total duration for the day
+        $markup .= '<div class="day-total"><span class="label">Perustunnit</span>'
+            . '<span class="value">' . reservation_utilities_format_interval(
+            $day_total_counter) . '</span></div>';
+      }
+      
+      if ($day_evening_counter > 0) { // set markup for hours of weekdays after 6pm
+        if ($pdf) {
+          $markup .= '<div style="font-size: 13px; font-weight: bold; margin-'
+              . 'bottom: 10px;">Arki-ilta (klo 18-)  ' 
+              . reservation_utilities_format_interval($day_evening_counter) 
+              . '</div>';
+        }
+        else {
+          $markup .= '<div class="day-evening"><span class="label">Arki-ilta '
+              . '(klo 18-)</span><span class="value">' 
+              . reservation_utilities_format_interval($day_evening_counter) 
+              . '</span></div>';
+        }
+      }
+      
+      if ($day_sat_counter > 0) { // set markup for hours of Saturdays after 1pm
+        if ($pdf) {
+          $markup .= '<div style="font-size: 13px; font-weight: bold; margin-'
+              . 'bottom: 10px;">La-ilta (klo 13-)  ' 
+              . reservation_utilities_format_interval($day_sat_counter) . '</div>';
+        }
+        else {
+          $markup .= '<div class="day-sat"><span class="label">La-ilta (klo 13-)'
+              . '</span><span class="value">' . reservation_utilities_format_interval(
+              $day_sat_counter) . '</span></div>';
+        }
+      }
+      
+      if ($day_special_counter > 0) { // set markup for hours of special days
+        if ($pdf) {
+          $markup .= '<div style="font-size: 13px; font-weight: bold; margin-'
+              . 'bottom: 10px;">Sunnuntai/Pyhä  ' 
+              . reservation_utilities_format_interval($day_special_counter) 
+              . '</div>';
+        }
+        else {
+          $markup .= '<div class="day-special"><span class="label">Sunnuntai/'
+              . 'Pyhä</span><span class="value">' 
+              . reservation_utilities_format_interval($day_special_counter) 
+              . '</span></div>';
+        }
+      }
+      
+      if ($pdf) {
+        $markup .= '</div>';
+      }
+    }
+    
+    if ($pdf) {
+      $markup .= '<div style="margin-top: 15px; font-size: 15px; font-weight: '
+          . 'bold;">' . $month . ' yhteensä:</div>';
+      
+      // set total duration for the month
+      $markup .= '<div style="font-size: 15px; font-weight: bold;  margin-top: '
+          . '10px; margin-bottom: 10px;">Perustunnit  ' 
+          . reservation_utilities_format_interval($month_total_counter) 
+          . '</div>';
+    }
+    else {
+      // set total duration for the month
+      $markup .= '<div class="month-total"><span class="label">Perustunnit'
+          . '</span><span class="value">' . reservation_utilities_format_interval(
+          $month_total_counter) . '</span></div>';
+    }
+    
+    if ($month_evening_counter > 0) { // set markup for hours of weekdays after 6pm
+      if ($pdf) {
+        $markup .= '<div style="font-size: 15px; font-weight: bold; margin-'
+            . 'bottom: 10px;">Arki-ilta (klo 18-)  ' 
+            . reservation_utilities_format_interval($month_evening_counter) 
+            . '</div>';
+      }
+      else {
+        $markup .= '<div class="month-evening"><span class="label">Arki-ilta '
+            . '(klo 18-)</span><span class="value">' 
+            . reservation_utilities_format_interval($month_evening_counter) 
+            . '</span></div>';
+      }
+    }
+    
+    if ($month_sat_counter > 0) { // set markup for hours of Saturdays after 1pm
+      if ($pdf) {
+        $markup .= '<div style="font-size: 15px; font-weight: bold; margin-'
+            . 'bottom: 10px;">La-ilta (klo 13-)  ' 
+            . reservation_utilities_format_interval($month_sat_counter) . '</div>';
+      }
+      else {
+        $markup .= '<div class="month-sat"><span class="label">La-ilta (klo 13-)'
+            . '</span><span class="value">' 
+            . reservation_utilities_format_interval($month_sat_counter) 
+            . '</span></div>';
+      }
+    }
+      
+    if ($month_special_counter > 0) { // set markup for hours of special days
+      if ($pdf) {
+        $markup .= '<div style="font-size: 15px; font-weight: bold; margin-'
+            . 'bottom: 10px;">Sunnuntai/Pyhä  ' 
+            . reservation_utilities_format_interval($month_special_counter) 
+            . '</div>';
+      }
+      else {
+        $markup .= '<div class="month-special"><span class="label">Sunnuntai/'
+            . 'Pyhä</span><span class="value">' 
+            . reservation_utilities_format_interval($month_special_counter) 
+            . '</span></div>';
+      }
+    }
+    
+    if ($pdf) {
+      $markup .= '</div>';
+    }
+    else {
+      $markup .= '</div></div>';
+    }
+  }
+  
+  return $markup;
+}
+
+
+/**
+ * Helper function - get structured booking data
+ * 
+ * @param array $uids - merchant user ids (default: empty (all))
+ * @param int $start - timestamp for start date (default: NULL)
+ * @param int $end - timestamp for end date (default: NULL)
+ * @param array $stores - store ids (default: empty (all))
+ * @param array $employees - employee profile ids (default: empty (all))
+ * 
+ * @return array - bookings data
+ */
+function reservation_reports_get_bookings($uids = array(), $start = NULL, 
+    $end = NULL, $stores = array(), $employees = array()) {
+  
+  $bookings_data = array();
+  $bookings_data_structured = array();
+  $state = 2; // select only confirmed bookings
+  
+  // create a new query
+  $query = new EntityFieldQuery();
+  // set conditions
+  $query->entityCondition('entity_type', 'varaus') // booking entity
+    ->fieldCondition('field_slot_state', 'value', $state, '='); // selected state
+  
+  if (!empty($uids)) {
+    $query->propertyCondition('uid', $uids, 'IN'); // bookings for these users
+  }
+    
+  
+  if (isset($start)) {
+    // get bookings appointed later than start
+    $query->fieldCondition('field_slot_start', 'value', $start, '>=');
+  }
+  
+  if (isset($end)) {
+    // get bookings appointed earlier than end (add 86400 seconds to reach the end of the day)
+    $query->fieldCondition('field_slot_end', 'value', $end + 86400, '<');
+  }
+  
+  if (!empty($stores)) { // get bookings for the given stores
+    $query->fieldCondition('field_store', 'target_id', $stores, 'IN');
+  }
+  
+  if (!empty($employees)) { // get bookings for the given employees
+    $query->fieldCondition('field_employee_ref', 'target_id', $employees, 'IN');
+  }
+  
+  $query->fieldOrderBy('field_slot_start', 'value', 'ASC'); // order ascending by start date
+  
+  // execute query
+  $result = $query->execute();
+  
+  // no bookings for this user
+  if (empty($result)) {
+    return array();
+  }
+  
+  // walk through booking items
+  foreach ($result['varaus'] as $key => $data) {
+    // load booking
+    $entity_type = 'varaus';
+    $bookings = entity_load($entity_type, array($key));
+    $booking = reset($bookings);
+    $booking_wrapper = entity_metadata_wrapper($entity_type, $booking);
+    
+    // get booking id
+    $id = $booking_wrapper->getIdentifier();
+    // get start time
+    $start = $booking_wrapper->field_slot_start->value();
+    // get end time
+    $end = $booking_wrapper->field_slot_end->value();
+    // calculate duration
+    $duration = $end - $start;
+    // real duration
+    $real_duration = $duration;
+    if ($duration >= 28800) { // duration at least 8 h
+      // substract 0.5 h
+      $duration -= 1800;
+    }
+    
+    // get booking store
+    $store = $booking_wrapper->field_store->label();
+    
+    // get employee name if it is set
+    if (!empty($booking_wrapper->field_employee_ref->value())) {
+      $employee = $booking_wrapper->field_employee_ref->field_nimi->value();
+    }
+    else {
+      $employee = '';
+    }
+    
+    // store data into the array
+    $bookings_data[$id] = array(
+      'start' => $start,
+      'end' => $end,
+      'duration' => $duration,
+      'real_duration' => $real_duration,
+      'store' => $store,
+      'employee' => $employee,
+    );
+  }
+  
+  foreach ($bookings_data as $key => $data) {
+    // get month and day of the booking
+    $month = format_date($data['start'], 'custom', 'F Y');
+    $day = format_date($data['start'], 'custom', 'd.m.Y');
+    
+    if (!isset($bookings_data_structured[$month])) { // set month
+      $bookings_data_structured += array($month => array());
+    }
+    if (!isset($bookings_data_structured[$month][$day])) { // set day
+      $bookings_data_structured[$month] += array($day => array());
+    }
+    
+    // set booking data
+    $bookings_data_structured[$month][$day][] = array(
+      'id' => $key,
+      'start' => $data['start'],
+      'end' => $data['end'],
+      'duration' => $data['duration'],
+      'real_duration' => $data['real_duration'],
+      'store' => $data['store'],
+      'employee' => $data['employee'],
+    );
+  }
+
+  return $bookings_data_structured;
+}
+
+
+/**
+ * Helper function - test if a given date is a special day
+ * 
+ * @param int $timestamp - timestamp for a date
+ * 
+ * @return boolean - TRUE if the date is a special day, FALSE otherwise
+ */
+function reservation_reports_is_special_day($timestamp) {
+  // get saved easter days
+  $easter_days = reservation_set_easter_get_saved_data();
+  
+  // store good fridays (-2 days)
+  foreach ($easter_days as $key => $value) {
+    $good_fridays[$key] = $value - 2 * 86400;
+  }
+  
+  // store second easter days (+1 day)
+  foreach ($easter_days as $key => $value) {
+    $second_easter_days[$key] = $value + 86400;
+  }
+  
+  // store ascension days (+39 days)
+  foreach ($easter_days as $key => $value) {
+    $ascension_days[$key] = $value + 39 * 86400;
+  }
+  
+  // store pentecost days (+49 days)
+  foreach ($easter_days as $key => $value) {
+    $pentecost_days[$key] = $value + 49 * 86400;
+  }
+  
+  switch (format_date($timestamp, 'custom', 'd.m.')) {
+    case '01.01.': // New Year
+      return TRUE;
+    case '06.01.': // Epiphany
+      return TRUE;
+    case '01.05.': // first of May
+      return TRUE;
+    case '06.12.': // Independce Day
+      return TRUE;
+    case '25.12.': // Christmas day
+      return TRUE;
+    case '26.12.': // Boxing day
+      return TRUE;
+    default:
+      break;
+  }
+  
+  // test Midsummer day
+  if (format_date($timestamp, 'custom', 'm') == 6) { // June
+    $day = intval(format_date($timestamp, 'custom', 'd'));
+    if (20 <= $day && $day <= 26 && format_date($timestamp, 'custom', 'w') == 6) { 
+      // Midsummer day
+      return TRUE;
+    }
+  }
+  
+  // test All Saints' Day
+  if (format_date($timestamp, 'custom', 'm') == 10 || format_date($timestamp, 
+      'custom', 'm') == 11) { // October or November      
+    $month = intval(format_date($timestamp, 'custom', 'm'));
+    $day = intval(format_date($timestamp, 'custom', 'd'));
+      
+    if ($month === 10 && $day === 31 && format_date($timestamp, 'custom', 'w') 
+        == 6) { // Saturday 31.10. All Saints' Day
+      return TRUE;
+    }
+    if ($month === 11 && $day <= 6 && format_date($timestamp, 'custom', 'w') == 6) { 
+      // Saturday 1.-6.11. All Saints' Day
+      return TRUE;
+    }
+  }
+  
+  // test Good Friday
+  if (in_array($timestamp, $good_fridays)) {
+    return TRUE;
+  }
+  
+  // test Easter day
+  if (in_array($timestamp, $easter_days)) {
+    return TRUE;
+  }
+  
+  // test second Easter day
+  if (in_array($timestamp, $second_easter_days)) {
+    return TRUE;
+  }
+  
+  // test Ascension day
+  if (in_array($timestamp, $ascension_days)) {
+    return TRUE;
+  }
+  
+  // test Pentecost day
+  if (in_array($timestamp, $pentecost_days)) {
+    return TRUE;
+  }
+  
+  // not a special day
+  return FALSE;
+}

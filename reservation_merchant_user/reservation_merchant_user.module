@@ -1,0 +1,1012 @@
+<?php
+
+/**
+ * @file reservation_merchant_user.module
+ * Provides functions for user management of merchants
+ */
+
+/**
+ * Implements hook_menu()
+ */
+function reservation_merchant_user_menu() {
+  $items = array();
+  
+  $items['user/register/kauppias'] = array(
+    'title' => 'Käyttäjätilin rekisteröinti - Kauppias',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('reservation_merchant_user_register_form'),
+    'access callback' => TRUE,
+    'type' => MENU_NORMAL_ITEM,
+  );
+  
+  $items['my-account/%'] = array(
+    'title' => 'Omat tiedot',
+    'page callback' => 'reservation_merchant_user_account_page',
+    'page arguments' => array(1),
+    'access callback' => 'reservation_utilities_is_merchant',
+    'access arguments' => array(1),
+    'type' => MENU_NORMAL_ITEM,
+  );
+  
+  $items['my-account/%/view'] = array(
+    'title' => 'Omat tiedot',
+    'page callback' => 'reservation_merchant_user_account_page',
+    'page arguments' => array(1),
+    'access callback' => 'reservation_utilities_is_merchant',
+    'access arguments' => array(1),
+    'type' => MENU_DEFAULT_LOCAL_TASK,
+    'weight' => 0,
+    
+  );
+  
+  $items['my-account/%/edit-merchant'] = array(
+    'title' => 'Muokkaa henkilötietoja',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('reservation_merchant_user_merchant_edit_form', 1),
+    'access callback' => 'reservation_utilities_is_merchant',
+    'access arguments' => array(1),
+    'type' => MENU_LOCAL_TASK,
+    'weight' => 1,
+  );
+  
+  $items['my-account/%/edit-store'] = array(
+    'title' => 'Muokkaa kaupan tietoja',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('reservation_merchant_user_store_edit_form'),
+    'access callback' => 'reservation_utilities_is_merchant',
+    'access arguments' => array(1),
+    'type' => MENU_LOCAL_TASK,
+    'weight' => 2,
+  );
+  
+  $items['my-account/%/add-store'] = array(
+    'title' => 'Lisää / poista kauppa',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('reservation_merchant_user_store_add_form'),
+    'access callback' => 'reservation_utilities_is_merchant',
+    'access arguments' => array(1),
+    'type' => MENU_LOCAL_TASK,
+    'weight' => 3,
+  );
+  
+  return $items;
+}
+
+
+/**
+ * Implements hook_page_alter()
+ */
+function reservation_merchant_user_page_alter(&$page) {
+  $user_pages = array('user', 'user/register', 'user/login');
+  
+  if (in_array(request_path(), $user_pages)) { 
+    // redirect to the home page
+    drupal_goto('/');
+  }
+  
+  if (drupal_is_front_page() && user_is_logged_in()) { // the front page and a logged in user
+    if (reservation_utilities_is_merchant()) { // a merchant
+      // redirect to the order page
+      drupal_goto('tilaus');
+    }
+    else if (reservation_utilities_is_clerk()) { // a clerk
+      // redirect to the employee page
+      drupal_goto('tyontekijat');
+    }
+  }
+}
+
+
+/**
+ * Implements hook_mail()
+ */
+function reservation_merchant_user_mail($key, &$message, $params) {
+  switch ($key) {
+    case 'merchant_register':
+      if (isset($params['subject'])) {
+        $message['subject'] = $params['subject'];
+      }
+      if (isset($params['body'])) {
+        $message['body'][] = $params['body'];
+      }
+      if (isset($params['headers']) && is_array($params['headers'])) {
+        $message['headers'] += $params['headers'];
+      }
+      break;
+  }
+}
+
+
+/**
+ * Implements hook_form_alter()
+ */
+function reservation_merchant_user_form_alter(&$form, &$form_state, $form_id) {
+  switch ($form_id) {
+    case 'user_login_block':
+      // change the width of the fields
+      $form['name']['#size'] = 40;
+      $form['pass']['#size'] = 40;
+      
+      // change the link for creating a new account
+      $form['links']['#markup'] = str_replace('/register', '/register/kauppias', 
+          $form['links']['#markup']);
+      break;
+  }
+}
+
+
+/**
+ * PAGE CALLBACKS
+ */
+
+/**
+ * Page callback - user profile page
+ */
+function reservation_merchant_user_account_page($arg1) {
+  $stores = array();
+  // load user profile
+  $profile_array = profile2_load_by_user($arg1);
+  $profile = reset($profile_array);
+  $entity_type = 'profile2';
+  $profile_wrapper = entity_metadata_wrapper($entity_type, $profile);
+  
+  // get merchant name
+  $name = $profile_wrapper->field_nimi->value();
+  // get locations
+  $locations = reservation_utilities_get_locations_by_pid(
+      $profile_wrapper->getIdentifier());
+  // get phone
+  $phone = $profile_wrapper->field_puhelinnumero->value();
+  // get user account
+  $account = user_load($arg1);
+  // get email
+  $email = $account->mail;
+  
+  // create markup
+  $markup = '<div id="my-account-page"><div id="merchant-name">' . $name 
+      . '</div><div id="merchant-email">' . $email . '</div><div id="merchant-'
+      . 'phone">' . $phone . '</div>';
+  
+  // markup for locations
+  if (!empty($locations)) {
+    $markup .= '<div id="merchant-locations"><ul>';
+    
+    foreach ($locations as $key => $name) {
+      $markup .= '<li>' . $name . '</li>';
+    }
+    $markup .= '</ul></div>';
+  }
+  
+  // get stores
+  foreach ($profile_wrapper->field_store_ref as $delta => $store_wrapper) {
+    // get store name
+    $store_name = $store_wrapper->label();
+    // get billing address
+    $billing = $store_wrapper->field_laskutusosoite->value();
+    $stores[] = array(
+      'name' => $store_name,
+      'billing' => $billing,
+    );
+  }
+  
+  if (!empty($stores)) {
+    $markup .= '<div id="stores"><div class="caption">Omat kaupat</div>';
+    foreach ($stores as $key => $data) {
+      $markup .= '<div class="store"><div class="store-name">' . $data['name'] 
+          . '</div><div class="store-billing">' . $data['billing'] . '</div></div>';
+    }
+  }
+  
+  $markup .= '</div></div>';
+  
+  return $markup;
+}
+
+/**
+ * FORM CALLBACKS
+ */
+
+/**
+ * Form callback - user register form
+ */
+function reservation_merchant_user_register_form($form, $form_state) { 
+  global $user;
+  
+  // load user account
+  $account = user_load($user->uid);
+  
+  if (isset($account->field_location_ref_user) && !empty($account->field_location_ref_user)) {
+    $tids = array();
+    // get location ids
+    foreach ($account->field_location_ref_user['und'] as $delta => $tid) {
+      $tids[] = $tid['tid'];
+    }
+    // get locations for this user
+    $locations = reservation_utilities_get_locations($tids);
+  }
+  else {
+   // get all locations
+   $locations = reservation_utilities_get_locations();
+  }
+  
+  // get store types
+  $types = reservation_utilities_get_store_types();
+  
+  $form['email'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Email'),
+    '#required' => TRUE,
+  );
+  
+  $form['pass'] = array(
+    '#type' => 'password_confirm',
+    '#title' => t('Password'),
+    '#size' => 25,
+    '#required' => TRUE,
+  );
+  
+  $form['name'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Name'),
+    '#required' => TRUE,
+  );
+  
+  $form['phone'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Phone'),
+    '#description' => t('Enter phone number without dashes and spcaces. E.g <em>'
+        . '040123456</em>'),
+    '#required' => TRUE,
+  );
+
+  // location selection
+  $form['location'] = array(
+    '#type' => 'select',
+    '#title' => t('Town/Region'),
+    '#options' => $locations,
+    '#default_value' => reset($locations),
+    '#required' => TRUE,
+  );
+  
+  // fieldset for a store
+  $form['store_fieldset'] = array(
+    '#type' => 'fieldset',
+    '#title' => 'Kaupat',
+    '#prefix' => '<div id="store-data">',
+    '#suffix' => '</div>',
+    '#collapsible' => FALSE,
+  );
+  
+  if (empty($form_state['num_stores'])) { // no additional stores selected
+    $form_state['num_stores'] = 1;
+  }
+  
+  for ($i = 0; $i < $form_state['num_stores']; $i++) { 
+    // name of the store
+    $form['store_fieldset'][$i]['store_name_' . $i] = array(
+      '#type' => 'textfield',
+      '#title' => t('Store name'),
+      '#required' => ($i === 0) ? TRUE : FALSE, // first store is required
+    );
+  
+    // billing address of the store
+    $form['store_fieldset'][$i]['store_billing_' . $i] = array(
+      '#type' => 'textarea',
+      '#title' => t('Billing address'),
+      '#rows' => 3,
+      '#resizable' => FALSE,
+    );
+    
+    // store type selection
+    $form['store_fieldset'][$i]['store_type_' . $i] = array(
+      '#type' => 'select',
+      '#title' => t('Store type'),
+      '#options' => $types,
+      '#default_value' => 16, // K-Market
+      '#required' => TRUE,
+    );
+  }
+  
+  // add more store button
+  $form['store_fieldset']['add_more_store'] = array(
+    '#type' => 'submit',
+    '#value' => 'Lisää kauppa',
+    '#submit' => array('reservation_merchant_user_add_store'),
+    '#ajax' => array(
+      'callback' => 'reservation_merchant_user_add_more_callback',
+      'wrapper' => 'store-data',
+    ),
+  );
+  
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Save'),
+  );
+  
+  return $form;
+}
+
+
+/**
+ * Form callback - merchant edit form
+ */
+function reservation_merchant_user_merchant_edit_form($form, &$form_state, $uid = 0) {
+  if ($uid == 0) { // not a valid user
+    return array();
+  }
+  
+  // load user account
+  $account = user_load($uid);
+  
+  // load user profile
+  $profile_array = profile2_load_by_user($account);
+  $profile = reset($profile_array);
+  $entity_type = 'profile2';
+  $profile_wrapper = entity_metadata_wrapper($entity_type, $profile);
+  
+  $form['email'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Email'),
+    '#default_value' => $account->mail,
+    '#required' => TRUE,
+  );
+  
+  $form['pass'] = array(
+    '#type' => 'password_confirm',
+    '#title' => t('Password'),
+    '#description' => t('Enter a new password into the both fields if you want '
+        . 'to change it.'),
+    '#size' => 25,
+  );
+  
+  $form['name'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Name'),
+    '#default_value' => $profile_wrapper->field_nimi->value(),
+    '#required' => TRUE,
+  );
+  
+  $form['phone'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Phone'),
+    '#description' => t('Enter phone number without dashes and spcaces. E.g <em>'
+        . '040123456</em>'),
+    '#default_value' => $profile_wrapper->field_puhelinnumero->value(),
+    '#required' => TRUE,
+  );
+  
+   $form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Save'),
+  );
+  
+  return $form;
+}
+
+
+/**
+ * Form callback - store edit form
+ */
+function reservation_merchant_user_store_edit_form($form, &$form_state) {
+  // get store types
+  $types = reservation_utilities_get_store_types();
+  // get stores for the current merchant
+  $stores = reservation_utilities_get_stores();
+  
+  if (!empty($form_state['values']['store'])) { // a store selected
+    $key = $form_state['values']['store'];
+  }
+  else { // initial form
+    
+    // get the key for the default store
+    foreach ($stores as $delta => $item) {
+      $key = $delta;
+      break;
+    }
+  }
+  
+  // load store entity
+  $entity_type = 'kauppa';
+  $store_entity_array = entity_load($entity_type, array($key));
+  $store_entity = reset($store_entity_array);
+  $store_wrapper = entity_metadata_wrapper($entity_type, $store_entity);
+  
+  // get store name
+  $store_name = $store_wrapper->label();
+  // get store billing address
+  $store_billing = $store_wrapper->field_laskutusosoite->value();
+  // get store type tid
+  $store_type = $store_wrapper->field_type_ref->getIdentifier();
+  
+  $form['store'] = array(
+    '#type' => 'select',
+    '#title' => t('Kauppa'),
+    '#options' => $stores,
+    '#default_value' => $key,
+    '#ajax' => array(
+      'callback' => 'reservation_merchant_user_change_store',
+      'event' => 'change',
+      'wrapper' => 'store-data',
+      'method' => 'replace',
+    ),
+    '#attributes' => array(
+      'autocomplete' => 'off',
+    ),
+    '#required' => TRUE,
+  );
+  
+  // container for store properties
+  $form['store_properties'] = array(
+    '#type' => 'container',
+    '#prefix' => '<div id="store-data">',
+    '#suffix' => '</div>',    
+  );
+  
+  // name of the store
+  $form['store_properties']['store_name'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Store name'),
+    '#required' => TRUE,
+    '#default_value' => $store_name,  
+  );
+  
+  if (!empty($form_state['values']['store'])) { // a store selected via ajax
+    // set #value for store name
+    $form['store_properties']['store_name']['#value'] = $store_name;
+  }
+  
+  // billing address of the store
+  $form['store_properties']['store_billing'] = array(
+    '#type' => 'textarea',
+    '#title' => t('Billing address'),
+    '#rows' => 3,
+    '#resizable' => FALSE,
+    '#required' => TRUE,
+    '#default_value' => $store_billing,
+  );
+  
+  if (!empty($form_state['values']['store'])) { // a store selected via ajax
+    // set #value for billing address
+    $form['store_properties']['store_billing']['#value'] = $store_billing;
+  }
+  
+  // store type selection
+  $form['store_properties']['store_type'] = array(
+    '#type' => 'select',
+    '#title' => t('Store type'),
+    '#options' => $types,
+    '#default_value' => $store_type,
+    '#required' => TRUE,
+  );
+  
+   if (!empty($form_state['values']['store'])) { // a store selected via ajax
+    // set #value for type
+    $form['store_properties']['store_type']['#value'] = $store_type;
+  }
+  
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Save'),
+  );
+  
+  return $form;
+}
+
+
+/**
+ * Form callback - store add / remove form
+ */
+function reservation_merchant_user_store_add_form($form, &$form_state) {
+  // get stores for the current user
+  $user_stores = reservation_utilities_get_stores();
+  // get store types
+  $types = reservation_utilities_get_store_types();
+  
+  // fieldset for adding a new store
+  $form['new_store'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('A new store'),
+    '#collapsible' => TRUE,
+    '#collapsed' => FALSE,
+    '#prefix' => '<div id="new-store">',
+    '#suffix' => '</div>',    
+  );
+  
+  // name of the store
+  $form['new_store']['store_name'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Store name'),
+  );
+  
+  // billing address of the store
+  $form['new_store']['store_billing'] = array(
+    '#type' => 'textarea',
+    '#title' => t('Billing address'),
+    '#rows' => 3,
+    '#resizable' => FALSE,
+  );
+  
+  // store type selection
+  $form['new_store']['store_type'] = array(
+    '#type' => 'select',
+    '#title' => t('Store type'),
+    '#options' => $types,
+    '#default_value' => 16, // K-Market
+  );
+
+  // fieldset for existing store(s)
+  $form['existing_stores'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Existing store(s)'),
+    '#collapsible' => TRUE,
+    '#collapsed' => FALSE,
+    '#prefix' => '<div id="existing-stores">',
+    '#suffix' => '</div>',    
+  );
+    
+  if (!empty($user_stores)) { // existing store(s)
+    $form['existing_stores']['stores'] = array(
+      '#type' => 'checkboxes',
+      '#options' => $user_stores,
+      '#default_value' => array_keys($user_stores),
+      '#title' => t('Uncheck store(s) you want to remove'),
+    );
+  }
+  
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Save'),
+  );
+  
+  return $form;
+}
+
+
+/**
+ * AJAX CALLBACKS
+ */
+
+/**
+ * Ajax callback - change store
+ */
+function reservation_merchant_user_change_store($form, &$form_state) {
+  return $form['store_properties'];
+}
+
+
+/**
+ * Ajax callback - return stores fieldset
+ */
+function reservation_merchant_user_add_more_callback($form, &$form_state) {
+  return $form['store_fieldset'];
+}
+
+
+/**
+ * FORM VALIDATION
+ */
+
+/**
+ * Form validation - user register form
+ */
+function reservation_merchant_user_register_form_validate($form, &$form_state) {
+  if (!valid_email_address($form_state['values']['email'])) {
+    form_set_error('email', t('You must enter a valid email address'));
+  }
+  else if (user_load_by_mail($form_state['values']['email'])) { // email exists
+    form_set_error('email', t('Email address is already used. Try another one.'));
+  }
+  
+  if (!reservation_utilities_valid_phone($form_state['values']['phone'])) {
+    form_set_error('phone', t('Enter phone number without dashes and spcaces. '
+        . 'E.g <em>040123456</em>'));
+  }
+  else if (reservation_utilities_phone_exists($form_state['values']['phone'])) { 
+    form_set_error('phone', t('Phone number is already used. Try another one.'));
+  }
+}
+
+
+/**
+ * Form validation - merchant edit form
+ */
+function reservation_merchant_user_merchant_edit_form_validate($form, &$form_state) {
+  global $user;
+  
+  // get form values
+  $email = $form_state['values']['email'];
+  $phone = $form_state['values']['phone'];
+  
+  if (!valid_email_address($email)) {
+    form_set_error('email', t('You must enter a valid email address'));
+  }
+  else if (user_load_by_mail($email) && $email !== $user->mail) { 
+    // email exists and belongs to another user
+    form_set_error('email', t('Email address is already used. Try another one.'));
+  }
+  
+  if (!reservation_utilities_valid_phone($phone)) {
+    form_set_error('phone', t('Enter phone number without dashes and spcaces. '
+        . 'E.g <em>040123456</em>'));
+  }
+  else if (reservation_utilities_phone_exists($phone) && 
+      !reservation_utilities_user_phone($phone, $user->uid)) { 
+    // phone exists and belongs to another user
+    form_set_error('phone', t('Phone number is already used. Try another one.'));
+  }
+}
+
+
+/**
+ * FORM SUBMIT
+ */
+
+/**
+ * Form submit - add more stores
+ */
+function reservation_merchant_user_add_store($form, &$form_state) {
+  if (!isset($form_state['num_stores'])) {
+    $form_state['num_stores'] = 1;
+  }
+  
+  // increment number of stores in the form
+  $form_state['num_stores']++;
+  
+  // rebuild the form
+  $form_state['rebuild'] = TRUE;
+}
+
+
+/**
+ * Form submit - user register form
+ */
+function reservation_merchant_user_register_form_submit($form, &$form_state) {
+  $selected = array();
+  $stores_formatted = array();
+  $stores_data = array();
+  $store_ids = array();
+  $user_counter = 1;
+  $i = 1;
+  
+  // get form values
+  $email = $form_state['values']['email'];
+  $passwd = $form_state['values']['pass'];
+  $name = $form_state['values']['name'];
+  $phone = $form_state['values']['phone'];
+  $location = $form_state['values']['location'];
+  
+  // get the first store name, billing address and type
+  $stores_data[0]['name'] = $form_state['values']['store_name_0'];
+  $stores_data[0]['billing'] = $form_state['values']['store_billing_0'];
+  $stores_data[0]['type'] = $form_state['values']['store_type_0'];
+  
+  // get additional stores
+  while (isset($form_state['values']['store_name_'. $i])) {
+    // get store name, billing address and type
+    $stores_data[] = array(
+      'name' => $form_state['values']['store_name_' . $i],
+      'billing' => $form_state['values']['store_billing_' . $i],
+      'type' => $form_state['values']['store_type_' . $i],
+    );
+    $i++;
+  }
+  
+  foreach ($stores_data as $key => $value) {
+    if (empty($value['name'])) {
+      // remove empty records
+      unset($stores_data[$key]);
+    }
+  }
+  
+  // convert name to lowercase letters and replace spaces and dashes with undescores
+  $username = strtolower(str_replace(array(' ', '-'), '_', $name));
+  $user_name_original = $username;
+  
+  while (user_load_by_name($username)) { // this username exists
+    $username = $user_name_original . $user_counter++; // increase index for the username
+  }
+  
+  $edit = array(
+    // create username from the name of a user
+    'name' => $username,
+    'pass' => $passwd,
+    'mail' => $email,
+    'init' => $email,
+    'roles' => array(
+      2 => 'authenticated user',
+      4 => 'kauppias',
+    ),
+    'status' => 0, // set user status as blocked
+  );
+  
+  // create a new user
+  $account = user_save(drupal_anonymous_user(), $edit);
+  
+  $values = array(
+    'type' => 'profile_merchant',
+    'uid' => $account->uid,
+  );
+  
+  // create a new profile
+  $profile = profile2_create($values);
+  // save the profile
+  profile2_save($profile);
+  
+  $entity_type = 'profile2';
+  $profile_wrapper = entity_metadata_wrapper($entity_type, $profile);
+  
+  // set field values
+  $profile_wrapper->field_nimi->set($name);
+  $profile_wrapper->field_puhelinnumero->set($phone);
+  // set location reference value
+  $profile_wrapper->field_location_ref_user->set(array($location));
+  
+  // get stores for the location
+  $stores = reservation_utilities_get_stores_by_locations(array($location));
+  if (!empty($stores)) {
+    foreach ($stores as $key => $value) {
+      // convert store to lowercase and replace spaces and dashes with underscores
+      $stores_formatted[$key] = strtolower(str_replace(array(' ', '-'), '_', $value));
+    }
+    
+    foreach ($stores_data as $key => $value) {
+      // convert the store to be added into lowercase and replace spaces and 
+      // dashes with underscores
+      $store_formatted = strtolower(str_replace(array(' ', '-'), '_', 
+          $value['name']));
+      
+      foreach ($stores_formatted as $key2 => $value2) {
+        if ($store_formatted === $value2) { // store already added
+          // get store id
+          $stores_data[$key]['store_id'] = $key2;
+          break;
+        }
+      }
+    }
+  }
+  
+  foreach ($stores_data as $key => $value) {
+    if (!isset($value['store_id'])) { // add a new store
+      // create a new store entity
+      $entity_type = 'kauppa';
+      $store_entity = entity_create($entity_type, array('type' => $entity_type));
+      $store_wrapper = entity_metadata_wrapper($entity_type, $store_entity);
+    
+      // set entity properties
+      $store_wrapper->title = $value['name'];
+      $store_wrapper->uid = $account->uid;
+      $store_wrapper->created = time();
+      $store_wrapper->changed = time();
+    
+      // set location reference value
+      $store_wrapper->field_location_ref_store->set($location);
+      // set store type reference value
+      $store_wrapper->field_type_ref->set($value['type']);
+      // set billing address
+      $store_wrapper->field_laskutusosoite->set($value['billing']);
+    
+      // save the entity
+      $store_wrapper->save();
+    
+      // get store entity id
+      $store_ids[] = $store_wrapper->getIdentifier();
+    }
+    else {
+      // get store entity id
+      $store_ids[] = $value['store_id'];
+    }
+  }
+  
+  // attach store entity ids to the profile entity
+  $profile_wrapper->field_store_ref->set($store_ids);
+  
+  // save the profile
+  $profile_wrapper->save();
+  
+  // create an email message for the admin
+  $message = '<p>Kauppias ' . $name . ' on rekisteröitynyt palveluun ja odottaa '
+      . 'tilin aktivointia.</p>';
+  
+  $params = array(
+    'subject' => 'Uusi kauppias rekisteröitynyt',
+    'body' => $message,
+  );
+  
+  // destination for the mail
+  $to = variable_get('email', 'info@vuorokori.fi');
+  // from address
+  $from = $account->mail;
+
+  // send email
+  drupal_mail('reservation_merchant_user', 'merchant_register', $to, 
+      language_default(), $params, $from);
+  
+  // redirect to home page
+  $form_state['redirect'] = '/';
+  
+  drupal_set_message(t('User account created for the email address %email. You '
+      . 'will get an email message when your account is activated', array(
+      '%email' => $email)));
+}
+
+
+/**
+ * Form submit - merchant edit form
+ */
+function reservation_merchant_user_merchant_edit_form_submit($form, &$form_state) {
+  global $user;
+  
+  // get submitted values
+  $email = $form_state['values']['email'];
+  $name = $form_state['values']['name'];
+  $phone = $form_state['values']['phone'];
+  $passwd = $form_state['values']['pass'];
+  
+  // load user account
+  $account = user_load($user->uid);
+  
+  // create edit array
+  $edit = array(
+    'mail' => $email,
+  );
+  
+  if (!empty($passwd)) {
+    $edit['pass'] = $passwd;
+  }
+  
+  // save account
+  $account = user_save($account, $edit);
+  
+  // load user profile
+  $profile_array = profile2_load_by_user($account);
+  $profile = reset($profile_array);
+  $entity_type = 'profile2';
+  $profile_wrapper = entity_metadata_wrapper($entity_type, $profile);
+  
+  // set merchant name
+  $profile_wrapper->field_nimi->set($name);
+  // set phone
+  $profile_wrapper->field_puhelinnumero->set($phone);
+  
+  // save the profile
+  $profile_wrapper->save();
+  
+  drupal_set_message(t('User data updated.'), 'status');
+}
+
+
+/**
+ * Form submit - store edit form
+ */
+function reservation_merchant_user_store_edit_form_submit($form, &$form_state) {
+  // get store id
+  $store_id = $form_state['values']['store'];
+  // get store name
+  $store_name = check_plain($form_state['input']['store_name']);
+  // get store billing address
+  $store_billing = check_plain($form_state['input']['store_billing']);
+  // get store type
+  $store_type = check_plain($form_state['input']['store_type']);
+  
+  // load store entity
+  $entity_type = 'kauppa';
+  $store_entity_array = entity_load($entity_type, array($store_id));
+  $store_entity = reset($store_entity_array);
+  $store_wrapper = entity_metadata_wrapper($entity_type, $store_entity);
+  
+  // set store name
+  $store_wrapper->title = $store_name;
+  // set billing address of the store
+  $store_wrapper->field_laskutusosoite->set($store_billing);
+  // set store type
+  $store_wrapper->field_type_ref->set($store_type);
+  
+  // save the entity
+  $store_wrapper->save();
+  
+  drupal_set_message(t('Details of store %store updated.', array('%store' => 
+        $store_name)));
+}
+
+
+/**
+ * Form submit - store add form
+ */
+function reservation_merchant_user_store_add_form_submit($form, &$form_state) {
+  global $user;
+  $selected = array();
+  
+  // get form values
+  $store_name = $form_state['values']['store_name'];
+  $store_billing = $form_state['values']['store_billing'];
+  $store_type = $form_state['values']['store_type'];
+  
+  if (isset($form_state['values']['stores']) && !empty($form_state['values']['stores'])) { 
+    // existing stores; get selected stores
+    $selected = array_filter($form_state['values']['stores'], 
+        'reservation_utilities_is_non_zero');
+  }
+  
+  // load user profile
+  $profile_array = profile2_load_by_user($user->uid);
+  $profile = reset($profile_array);
+  $entity_type = 'profile2';
+  $profile_wrapper = entity_metadata_wrapper($entity_type, $profile);
+  
+  // get locations
+  $locations = reservation_utilities_get_locations_by_pid(
+      $profile_wrapper->getIdentifier());
+  
+  foreach ($locations as $key => $name) {
+    // get location tid
+    $location_tid = $key;
+    break;
+  }
+  
+  if (!empty($store_name)) { // a new store added
+    $stores_formatted = array();
+    $new_store = TRUE;
+    
+    // get stores for the location(s) of user
+    $stores = reservation_utilities_get_stores_by_locations(array($location_tid));
+    
+    if (!empty($stores)) {
+      foreach ($stores as $key => $value) {
+        // convert store to lowercase and replace spaces and dashes with underscores
+        $stores_formatted[$key] = strtolower(str_replace(array(' ', '-'), '_', $value));
+      }
+      // convert the store to be added into lowercase and replace spaces and dashes with underscores
+      $store_formatted = strtolower(str_replace(array(' ', '-'), '_', $store_name));
+    
+      foreach ($stores_formatted as $key => $value) {
+        if ($store_formatted === $value) { // store already added
+          // get store id
+          $store_id = $key;
+          $new_store = FALSE;
+          break;
+        }
+      }
+    }
+    
+    if ($new_store) { // add a new store
+      // create a new store entity
+      $entity_type = 'kauppa';
+      $store_entity = entity_create($entity_type, array('type' => $entity_type));
+      $store_wrapper = entity_metadata_wrapper($entity_type, $store_entity);
+      
+      // set entity properties
+      $store_wrapper->title = $store_name;
+      $store_wrapper->uid = $user->uid;
+      $store_wrapper->created = time();
+      $store_wrapper->changed = time();
+      
+      // set location reference value
+      $store_wrapper->field_location_ref_store->set($location_tid);
+      
+      // set billing address if that was given
+      if (!empty($store_billing)) {
+        $store_wrapper->field_laskutusosoite->set($store_billing);
+      }
+      
+      // set store type
+      $store_wrapper->field_type_ref->set($store_type);
+    
+      // save the entity
+      $store_wrapper->save();
+      
+      // get store entity id
+      $store_id = $store_wrapper->getIdentifier();
+    }
+    
+    // append store entity id to the selected array
+    $selected[$store_id] = $store_id;
+  }
+  
+  // add selected stores as references to profile entity
+  $profile_wrapper->field_store_ref->set($selected);
+  
+  // save the profile
+  $profile_wrapper->save();
+  
+  drupal_set_message(t('Details of store(s) updated.'));
+}

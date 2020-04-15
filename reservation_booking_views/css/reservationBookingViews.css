@@ -1,0 +1,470 @@
+.page-tyovuorot #page-title {
+    display: none;
+}
+
+/* Booking calendar form */
+#reservation-booking-views-calendar-form {
+    float: left;
+    width: 100%;
+    margin-bottom: 25px;
+}
+
+#reservation-booking-views-calendar-form #edit-previous,
+#reservation-booking-views-calendar-form .new-booking-link,
+#reservation-booking-views-calendar-form .link-to-reservation {
+    float: left;
+}
+
+#reservation-booking-views-calendar-form #edit-previous {
+    background-color: #585858;
+}
+
+#reservation-booking-views-calendar-form .link-to-reservation {
+    margin-left: 40px;
+    margin-top: 30px;
+}
+
+#reservation-booking-views-calendar-form .new-booking-link {
+    margin-left: 100px;
+    margin-top: 30px;
+}
+
+#reservation-booking-views-calendar-form .new-booking-link a,
+#reservation-booking-views-calendar-form .link-to-reservation a {
+    border: none;
+    padding: 10px 30px;
+    color: #fff;
+    text-transform: uppercase;
+    font-size: 14px;
+    border-radius: 10px;
+    text-decoration: none;
+}
+
+#reservation-booking-views-calendar-form .new-booking-link a {
+    background-color: #01c000;
+}
+
+#reservation-booking-views-calendar-form .link-to-reservation a {
+    background-color: #0077df;
+}
+
+#reservation-booking-views-calendar-form .new-booking-link a:visited,
+#reservation-booking-views-calendar-form .link-to-reservation a:visited {
+    color: #fff;
+}
+
+#reservation-booking-views-calendar-form .new-booking-link a:hover,
+#reservation-booking-views-calendar-form .link-to-reservation a:hover {
+    background-color: #000;
+}
+
+#reservation-booking-views-calendar-form #edit-next {
+    float: right;
+    border-radius: 10px;
+    background-color: #585858;
+}
+
+#reservation-booking-views-calendar-form .form-submit {
+    margin-top: 22px;
+    border-radius: 10px;
+}
+
+/* Booking calendar - select location form */
+#reservation-booking-views-calendar-location-form {
+    float: left;
+    clear: left;
+    margin-right: 70px;
+}
+
+#reservation-booking-views-calendar-location-form .form-item-location,
+#reservation-booking-views-calendar-location-form #edit-location-submit {
+    float: left;
+}
+
+#reservation-booking-views-calendar-location-form .form-item-location {
+    margin-top: 50px;
+    margin-left: 5px;
+}
+
+#reservation-booking-views-calendar-location-form .form-item-location label {
+    font-size: 14px;
+    margin-bottom: 5px;
+}
+
+#reservation-booking-views-calendar-location-form .form-item-location select {
+    font-size: 13px;
+    background-color: #fff;
+    padding: 5px 10px;
+}
+
+#reservation-booking-views-calendar-location-form #edit-location-submit {
+    margin-left: 15px;
+    margin-top: 68px;
+    font-size: 13px;
+}
+
+/* Booking calendar - select store form */
+#reservation-booking-views-calendar-store-form {
+    float: left;
+    margin-right: 50px;
+}
+
+#reservation-booking-views-calendar-store-form .form-item-store,
+#reservation-booking-views-calendar-store-form #edit-store-submit {
+    float: left;
+}
+
+#reservation-booking-views-calendar-store-form .form-item-store {
+    margin-top: 50px;
+    margin-left: 5px;
+}
+
+#reservation-booking-views-calendar-store-form .form-item-store label {
+    font-size: 14px;
+    margin-bottom: 5px;
+}
+
+#reservation-booking-views-calendar-store-form .form-item-store select {
+    font-size: 13px;
+    background-color: #fff;
+    padding: 5px 10px;
+}
+
+#reservation-booking-views-calendar-store-form #edit-store-submit {
+    margin-left: 15px;
+    margin-top: 68px;
+    font-size: 13px;
+}
+
+/* Booking calendar - select employee form */
+#reservation-booking-views-calendar-employee-form {
+    float: left;
+    margin-right: 50px;
+}
+
+#reservation-booking-views-calendar-employee-form .form-item-employee,
+#reservation-booking-views-calendar-employee-form #edit-employee-submit {
+    float: left;
+}
+
+#reservation-booking-views-calendar-employee-form .form-item-employee {
+    margin-top: 50px;
+    margin-left: 5px;
+}
+
+#reservation-booking-views-calendar-employee-form .form-item-employee label {
+    font-size: 14px;
+    margin-bottom: 5px;
+}
+
+#reservation-booking-views-calendar-employee-form .form-item-employee select {
+    font-size: 13px;
+    background-color: #fff;
+    padding: 5px 10px;
+}
+
+#reservation-booking-views-calendar-employee-form #edit-employee-submit {
+    margin-left: 15px;
+    margin-top: 68px;
+    font-size: 13px;
+}
+
+/* Booking calendar - select week number form */
+#reservation-booking-views-calendar-week-number-form {
+    float: left;
+    margin-right: 50px;
+}
+
+#reservation-booking-views-calendar-week-number-form .form-item-week-number,
+#reservation-booking-views-calendar-week-number-form #edit-week-number-submit {
+    float: left;
+}
+
+#reservation-booking-views-calendar-week-number-form .form-item-week-number {
+    margin-top: 50px;
+    margin-left: 5px;
+}
+
+#reservation-booking-views-calendar-week-number-form .form-item-week-number label {
+    font-size: 14px;
+    margin-bottom: 5px;
+}
+
+#reservation-booking-views-calendar-week-number-form .form-item-week-number select {
+    font-size: 13px;
+    background-color: #fff;
+    padding: 5px 10px;
+}
+
+#reservation-booking-views-calendar-week-number-form #edit-week-number-submit {
+    margin-left: 15px;
+    margin-top: 68px;
+    font-size: 13px;
+}
+
+/* Booking calendar - select year form */
+#reservation-booking-views-calendar-year-form {
+    float: left;
+    margin-right: 50px;
+}
+
+#reservation-booking-views-calendar-year-form .form-item-year,
+#reservation-booking-views-calendar-year-form #edit-year-submit {
+    float: left;
+}
+
+#reservation-booking-views-calendar-year-form .form-item-year {
+    margin-top: 50px;
+    margin-left: 5px;
+}
+
+#reservation-booking-views-calendar-year-form .form-item-year label {
+    font-size: 14px;
+    margin-bottom: 5px;
+}
+
+#reservation-booking-views-calendar-year-form .form-item-year select {
+    font-size: 13px;
+    background-color: #fff;
+    padding: 5px 10px;
+}
+
+#reservation-booking-views-calendar-year-form #edit-year-submit {
+    margin-left: 15px;
+    margin-top: 68px;
+    font-size: 13px;
+}
+
+/* Booking calendar */
+#calendar-arrow-up {
+    float: left;
+    clear: both;
+    margin-left: 70px;
+    margin-top: 25px;
+    position: relative;
+    top: 5px;
+}
+
+#booking-calendar {
+    float: left;
+    width: 100%;
+    padding: 25px 0;
+    background-color: #fff;
+    border-radius: 10px;
+    -moz-border-radius: 10px;
+}
+
+#booking-calendar #week-number {
+    margin-top: 10px;
+    margin-bottom: 20p;
+    text-align: center;
+    font-size: 20px;
+    font-weight: bold;
+}
+
+#booking-calendar .day {
+    float: left;
+    width: 12.5%;
+    margin-left: .89%;
+    margin-right: .89%;
+    padding-top: 15px;
+}
+
+#booking-calendar .day-header {
+    text-align: center;
+    font-weight: bold;
+    margin-bottom: 15px;
+    font-size: 14px;
+    padding: 10px 0;
+}
+
+#booking-calendar .day.special .day-header {
+    background-color: #9f7ebd;
+    border-radius: 10px;
+}
+
+#booking-calendar .day-content {
+    float: left;
+    width: 100%;
+    margin-bottom: 15px;
+    padding: 15px 0;
+    border-radius: 10px;
+    -moz-border-radius: 10px;
+    text-align: center;
+    font-size: 11px;
+    color: #fff;
+    border: 2px solid #ff0000;
+}
+
+#booking-calendar .day-content.market {
+    background-color: #ffa500;
+}
+
+#booking-calendar .day-content.supermarket {
+    background-color: #0077df;
+}
+
+#booking-calendar .day-content.citymarket {
+    background-color: #f08080;
+}
+
+#booking-calendar .day-content.confirmed {
+    border: none;
+}
+
+#booking-calendar .day-content .employee,
+#booking-calendar .day-content .time {
+    font-weight: bold;
+}
+
+#booking-calendar .day-content .edit-button {
+    display: inline-block;
+    margin-top: 20px;
+    background-color: #01c000;
+    border-radius: 10px;
+    -moz-border-radius: 10px;
+    border: none;
+    padding: 8px 20px;
+    color: #fff;
+    text-transform: uppercase;
+    font-size: 13px;
+}
+
+#booking-calendar .day-content .edit-button:hover {
+    cursor: pointer;
+    background-color: #000;
+}
+
+#booking-calendar .day-content .edit-form {
+    display: none;
+    position: fixed;
+    left: 0;
+    right: 0;
+    margin: auto;
+    top: 100px;
+    width: 250px;
+    -webkit-box-shadow: 0 0 10px 0px #101010;
+    box-shadow: 0 0 10px 0px #101010;
+    padding: 15px 0;
+    background-color: #fff;
+}
+
+#booking-calendar .day-content .edit-form .close-window {
+    margin-left: 210px;
+}
+
+#booking-calendar .day-content .edit-form .close-window:hover {
+    cursor: pointer;
+}
+
+#booking-calendar .day-content .edit-form .store-name {
+    text-align: center;
+    font-size: 12px;
+    color: #000;
+    font-weight: bold;
+    margin-top: 5px;
+    margin-bottom: 10px;
+}
+
+#booking-calendar .day-content .edit-form .form-type-select select {
+    background-color: #fff;
+    padding: 5px 10px;
+}
+
+#booking-calendar .day-content .edit-form .form-item label {
+    color: #000;
+    font-size: 13px;
+    margin-bottom: 5px;
+}
+
+#booking-calendar .day-content .edit-form .form-item-date-date label,
+#booking-calendar .day-content .edit-form .form-item-start-time-time label,
+#booking-calendar .day-content .edit-form .form-item-end-time-time label {
+    display: none;
+}
+
+#booking-calendar .day-content .edit-form .form-item-date-date input {
+    width: 120px;
+    text-align: center;
+}
+
+#booking-calendar .day-content .edit-form .form-item-start-time-time input,
+#booking-calendar .day-content .edit-form .form-item-end-time-time input {
+    width: 80px;
+    text-align: center;
+}
+
+#booking-calendar .day-content .edit-form .form-item-confirm {
+    margin-top: 25px;
+}
+
+#booking-calendar .day-content .edit-form .form-submit {
+    margin-top: 15px;
+    margin-bottom: 20px;
+}
+
+#booking-calendar .day-content .remove-form {
+    display: inline-block;
+    margin-top: 20px;
+} 
+
+#booking-calendar .day-content .remove-form .form-submit {
+    background: #787878;
+    border-radius: 10px;
+    -moz-border-radius: 10px;
+    border: none;
+    padding: 8px 20px;
+    color: #fff;
+    text-transform: uppercase;
+    font-size: 13px;
+}
+
+/* Calendar info block */
+#block-reservation-booking-views-info {
+    float: left;
+    width: 100%;
+    padding-left: 40px;
+    margin-top: 25px;
+    margin-bottom: 40px;
+}
+
+#block-reservation-booking-views-info .not-confirmed,
+#block-reservation-booking-views-info .confirmed {
+    float: left;
+    clear: both;
+}
+
+#block-reservation-booking-views-info .not-confirmed {
+    margin-bottom: 20px;
+}
+
+#block-reservation-booking-views-info .color {
+    float: left;
+    width: 45px;
+    height: 30px;
+    margin-right: 15px;
+    border-radius: 10px;
+    -moz-border-radius: 10px;
+}
+
+#block-reservation-booking-views-info .not-confirmed .color {
+    background-color: #fe0000;
+}
+
+#block-reservation-booking-views-info .confirmed .color {
+    background-color: #01c000;
+}
+
+#block-reservation-booking-views-info .text {
+    float: left;
+    position: relative;
+    top: 7px;
+}
+
+#block-reservation-booking-views-info .not-confirmed .text {
+    color: #fe0000;
+}
+
+#block-reservation-booking-views-info .confirmed .text {
+    color: #01c000;
+}

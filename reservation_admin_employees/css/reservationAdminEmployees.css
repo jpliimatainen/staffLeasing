@@ -1,0 +1,264 @@
+.page-tyontekijat.admin-user .messages.error {
+    position: fixed;
+    top: 20px;
+    margin: auto;
+    left: 0;
+    right: 0;
+    width: 500px;
+}
+
+/* Select location form */
+#reservation-admin-employees-location-form {
+    float: left;
+    width: 100%;
+}
+
+#reservation-admin-employees-location-form .form-item,
+#reservation-admin-employees-location-form .form-submit {
+    display: inline-block;
+}
+
+#reservation-admin-employees-location-form .form-item {
+    margin-top: 0;
+}
+
+#reservation-admin-employees-location-form .form-item label {
+    font-size: 14px;
+    margin-bottom: 5px;
+}
+
+#reservation-admin-employees-location-form .form-type-select select {
+    background-color: #fff;
+    padding: 5px 10px;
+}
+
+#reservation-admin-employees-location-form .form-submit {
+    margin-left: 30px;
+    border-radius: 10px;
+    margin-top: 18px;
+}
+
+/* Employees list */
+#reservation-admin-employees-employees {
+    float: left;
+    width: 1140px;
+    padding: 20px 10px;
+    border: 1px solid #ccc;
+}
+
+#reservation-admin-employees-employees .employee-row {
+    float: left;
+    background-color: #fff;
+    margin-bottom: 15px;
+    margin-right: 15px;
+    padding: 25px 15px;
+}
+
+#reservation-admin-employees-employees .employee-row .content {
+    float: left;
+}
+
+#reservation-admin-employees-employees .name {
+    float: left;
+    width: 180px;
+    font-size: 13px;
+    margin-top: 5px;
+}
+
+#reservation-admin-employees-employees .edit-button,
+#reservation-admin-employees-employees .files-button,
+#reservation-admin-employees-employees .report-button {
+    float: left;
+}
+
+#reservation-admin-employees-employees .edit-button {
+    margin-right: 20px;
+    background-color: #0077df;
+    padding: 8px 20px;
+    color: #fff;
+    text-transform: uppercase;
+    font-size: 12px;
+    border-radius: 10px;
+}
+
+#reservation-admin-employees-employees .report-button,
+#reservation-admin-employees-employees .files-button {
+    margin-top: 5px;
+}
+
+#reservation-admin-employees-employees .files-button {
+    margin-right: 20px;
+}
+
+#reservation-admin-employees-employees .report-button a {
+    background-color: #585858;
+    padding: 8px 20px;
+    color: #fff;
+    text-transform: uppercase;
+    text-decoration: none;
+    font-size: 12px;
+    border-radius: 10px;
+}
+
+#reservation-admin-employees-employees .files-button a {
+    background-color: #01c000;
+    padding: 8px 20px;
+    color: #fff;
+    text-transform: uppercase;
+    text-decoration: none;
+    font-size: 12px;
+    border-radius: 10px;
+}
+
+#reservation-admin-employees-employees .report-button a:visited,
+#reservation-admin-employees-employees .files-button a:visited {
+    color: #fff;
+}
+
+#reservation-admin-employees-employees .report-button a:hover,
+#reservation-admin-employees-employees .files-button a:hover {
+    background-color: #000;
+}
+
+#reservation-admin-employees-employees .edit-button:hover {
+    cursor: pointer;
+    background-color: #000;
+}
+
+#reservation-admin-employees-employees .edit-form {
+    display: none;
+    position: fixed;
+    left: 0;
+    right: 0;
+    margin: auto;
+    top: 100px;
+    width: 430px;
+    -webkit-box-shadow: 0 0 10px 0px #101010;
+    box-shadow: 0 0 10px 0px #101010;
+    padding: 15px 20px;
+    background-color: #fff;
+}
+
+#reservation-admin-employees-employees .edit-form.form-error {
+    display: block;
+}
+
+#reservation-admin-employees-employees .edit-form .close-window {
+    margin-left: 400px;
+}
+
+#reservation-admin-employees-employees .edit-form .close-window:hover {
+    cursor: pointer;
+}
+
+#reservation-admin-employees-employees .edit-form .form-type-textfield input {
+    width: 300px;
+}
+
+#reservation-admin-employees-employees .edit-form .form-type-textarea textarea {
+    display: inline;
+    width: 320px;
+}
+
+#reservation-admin-employees-employees .edit-form .form-item label {
+    text-align: left;
+    margin-left: 10px;
+    margin-bottom: 5px;
+    font-size: 14px;
+}
+
+#reservation-admin-employees-employees .edit-form .form-submit {
+    margin-bottom: 15px;
+    margin-top: 10px;
+}
+
+/* Employee files page */
+.page-employee-files #reservation-admin-employees-download-document-form {
+    float: left;
+    width: 500px;
+    margin-top: 30px;
+    padding: 20px;
+    border: 1px solid #ccc;
+}
+
+#reservation-admin-employees-download-document-form .form-description {
+    font-weight: bold;
+    font-size: 18px;
+}
+
+#reservation-admin-employees-download-document-form .form-item label {
+    font-size: 14px;
+}
+
+#reservation-admin-employees-download-document-form .form-managed-file .form-submit {
+    margin-left: 25px;
+}
+
+#reservation-admin-employees-download-document-form .form-item-type label {
+    margin-bottom: 5px;
+}
+
+#reservation-admin-employees-download-document-form .form-item-type select {
+    background-color: #fff;
+    padding: 8px 20px;
+    text-align: center;
+    border: 1px solid #ddd;
+}
+
+.page-employee-files .saved-files {
+    float: left;
+    clear: left;
+    width: 900px;
+    margin-top: 30px;
+    padding: 20px;
+    border: 1px solid #ccc;
+}
+
+.saved-files .caption {
+    font-weight: bold;
+    font-size: 18px;
+    margin-bottom: 20px;
+}
+
+.saved-files .header,
+.saved-files .file-row {
+    float: left;
+    width: 100%;
+}
+
+.saved-files .file-row {
+    margin-bottom: 10px;
+}
+
+.saved-files .header span,
+.saved-files .file-row span {
+    float: left;
+    font-size: 14px;
+}
+
+.saved-files .header span {
+    font-weight: bold;
+}
+
+.saved-files .file {
+    width: 450px;
+}
+
+.saved-files .type {
+    width: 160px;
+}
+
+.saved-files .created {
+    width: 160px;
+}
+
+.saved-files .file-row .file,
+.saved-files .file-row .type,
+.saved-files .file-row .created {
+    position: relative;
+    top: 10px;
+}
+
+.saved-files .form-submit {
+    background-color: #ff0000;
+}

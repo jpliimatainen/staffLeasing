@@ -1,0 +1,6 @@
+name = Reservation Set Easter
+description = Provides a form to set dates for Easter days in each year
+package = Reservation System
+core = 7.x
+
+stylesheets[all][] = css/reservationSetEaster.css

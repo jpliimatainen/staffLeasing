@@ -1,0 +1,72 @@
+/* Pending merchants form */
+#block-reservation-admin-users-pending-merchants {
+    float: left;
+    width: 600px;
+    padding: 20px;
+    border: 1px solid #ccc;
+}
+
+#reservation-admin-users-pending-merchants-form {
+    float: left;
+    width: 100%;
+}
+
+#reservation-admin-users-pending-merchants-form .header {
+    float: left;
+    width: 100%;
+    margin-bottom: 15px;
+    font-size: 15px;
+    font-weight: bold;
+}
+
+#reservation-admin-users-pending-merchants-form .merchant-row {
+    float: left;
+    width: 100%;
+    font-size: 13px;
+    padding: 15px 0;
+    background-color: #fff;
+    margin-bottom: 15px;
+}
+
+#reservation-admin-users-pending-merchants-form .merchant-row .content {
+    position: relative;
+    top: 10px;
+}
+
+#reservation-admin-users-pending-merchants-form .name {
+    float: left;
+    width: 180px;
+    margin-left: 15px;
+}
+
+#reservation-admin-users-pending-merchants-form .location {
+    float: left;
+    width: 100px;
+}
+
+#reservation-admin-users-pending-merchants-form .stores {
+    float: left;
+    width: 160px;
+}
+
+/* link to merchant registration page */
+#block-reservation-admin-users-register-merchant {
+    float: left;
+    margin: 40px 0 40px 0;
+}
+
+#block-reservation-admin-users-register-merchant div a {
+    color: #fff;
+    font-size: 14px;
+    background-color: #0077df;
+    padding: 10px 20px;
+    text-decoration: none;
+}
+
+#block-reservation-admin-users-register-merchant div a:visited {
+    color: #fff;
+}
+
+#block-reservation-admin-users-register-merchant div a:hover {
+    background-color: #000;
+}

@@ -1,0 +1,179 @@
+<?php
+
+/**
+ * @file reservation_set_easter.module
+ * Provides a form to set dates for Easter days in each year
+ */
+
+/**
+ * Implements hook_permission
+ */
+function reservation_set_easter_permission() {
+  return array(
+    'administer reservation set easter' => array(
+      'title' => t('Admister reservation set easter'),
+      'descripiton' => t('Execute administrative tasks for reservation set easter'),
+    ),
+  );
+}
+
+
+/**
+ * Implements hook_menu()
+ */
+function reservation_set_easter_menu() {
+  $items = array();
+  
+  $items['admin/config/content/reservation-set-easter'] = array(
+    'title' => 'Aseta Pääsiäispäivät',
+    'description' => 'Hallinnoi Pääsiäispäiviä',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('reservation_set_easter_form'),
+    'access arguments' => array('administer reservation set easter'),
+    'type' => MENU_NORMAL_ITEM,
+  );
+  
+  return $items;
+}
+
+
+/**
+ * Form callback - set Easter days
+ */
+function reservation_set_easter_form($form, &$form_state) {
+  $form['saved'] = array(
+    '#markup' => reservation_set_easter_get_markup(),
+  );
+  
+  $form['year'] = array(
+    '#type' => 'date',
+    '#title' => 'Päivämäärä',
+    '#description' => 'Valitse pääsiäispäivä (sunnuntai), jonka haluat asettaa',
+    '#required' => TRUE,
+  );
+  
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => 'Tallenna',
+  );
+  
+  return $form;
+}
+
+
+/**
+ * Form submit - set Easter days
+ */
+function reservation_set_easter_form_submit($form, &$form_state) { 
+  // get submitted values
+  $day = $form_state['values']['year']['day'];
+  $month = $form_state['values']['year']['month'];
+  $year = $form_state['values']['year']['year'];
+  
+  // create a date string
+  $date_str = $year . '-' . $month . '-' . $day;
+  // create a timestamp from the date string
+  $date = strtotime($date_str);
+  
+  // get the id of an easter day entity for the submitted year if exists
+  $entity_id = reservation_set_easter_get_entity_id($year);
+  $entity_type = 'easter_day';
+  
+  if (!$entity_id) { // no entity exist for this year
+    // create a new easter day entity
+    $easter_entity = entity_create($entity_type, array('type' => $entity_type));
+  }
+  else {
+    // load existing entity
+    $easter_entity_array = entity_load($entity_type, array($entity_id));
+    $easter_entity = reset($easter_entity_array);
+  }
+  
+  $easter_wrapper = entity_metadata_wrapper($entity_type, $easter_entity);
+  
+  // set entity properties
+  $easter_wrapper->title = $year;
+  
+  // set entity field values
+  $easter_wrapper->field_easter_date->set($date);
+  
+  // save the entity
+  $easter_wrapper->save();
+  
+  // set message
+  drupal_set_message(t('Easter day set for year %year', array('%year' => $year)), 
+      'status');
+}
+
+
+/**
+ * Helper function - creates markup for saved Easter days
+ * 
+ * @return string - markup
+ */
+function reservation_set_easter_get_markup() {
+  $markup = '<div id="easter-data">';
+  
+  // get saved Easter day data
+  $easter_data = reservation_set_easter_get_saved_data();
+  
+  if (!empty($easter_data)) {
+    $markup .= '<div class="easter-caption">Tallennetut pääsiäiset</div><div '
+        . 'class="easter-header"><span class="year">Vuosi</span><span class="'
+        . 'date">Päivämäärä</span></div>';
+    // output data
+    foreach ($easter_data as $year => $date) {
+      $markup .= '<div class="easter-item"><span class="year">' . $year 
+          . '</span><span class="date">' . format_date($date, 'custom', 'd.m.Y') 
+          . '</span></div>';
+    }
+  }
+  
+  $markup .= '</div>';
+  
+  return $markup;
+}
+
+
+/**
+ * Helper function - return the id of an easter day entity for a given year if exists
+ * 
+ * @param string $year
+ * 
+ * @return int - entity id
+ */
+function reservation_set_easter_get_entity_id($year) {
+  return db_query("SELECT id FROM {eck_easter_day} WHERE title = :title", array(
+      ':title' => $year))->fetchField();
+}
+
+
+/**
+ * Helper function - return dates of Easter days for saved years
+ * 
+ * @return array - dates of Easter days keyed by years
+ */
+function reservation_set_easter_get_saved_data() {
+  $entity_ids = array();
+  $entity_data = array();
+  // get entity ids
+  $result = db_query("SELECT id FROM {eck_easter_day}")->fetchAllAssoc('id');
+  
+  if (empty($result)) { // no Easter days saved
+    return array();
+  }
+  
+  foreach ($result as $key => $value) {
+    $entity_ids[] = $key;
+  }
+  
+  // load entities
+  $easter_day_entities = entity_load('easter_day', $entity_ids);
+  
+  // store date and year
+  foreach ($easter_day_entities as $key => $value) {
+    $entity_data[$value->title] = $value->field_easter_date['und'][0]['value'];
+  }
+  
+  return $entity_data;
+}

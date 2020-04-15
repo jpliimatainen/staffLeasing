@@ -1,0 +1,1298 @@
+<?php
+
+/**
+ * @file reservation_utilities.module
+ * Provides utility functions for the reservation system
+ */
+
+
+/**
+ * Access callback
+ * 
+ * @param int $uid user_id to test (default: NULL)
+ * 
+ * @return boolean TRUE if the current user is a merchant, FALSE otherwise
+ * 
+ */
+function reservation_utilities_is_merchant($uid = NULL) {
+  global $user;
+
+  if (isset($uid) && in_array('kauppias', $user->roles)) {
+    if (intval($uid) === intval($user->uid)) { // user match
+      return TRUE;
+    }
+    return FALSE; // wrong user
+  }
+  if (in_array('kauppias', $user->roles)) { // uid not set
+    return TRUE;
+  }
+  
+  return FALSE;
+}
+
+
+/**
+ * Access callback
+ * 
+ * @param int $uid user_id to test (default: NULL)
+ * 
+ * @return boolean TRUE if the current user is an employee, FALSE otherwise
+ * 
+ */
+function reservation_utilities_is_employee($uid = NULL) {
+  global $user;
+  
+  if (isset($uid) && in_array('työntekijä', $user->roles)) {
+    if (intval($uid) === intval($user->uid)) { // user match
+      return TRUE;
+    }
+    return FALSE; // wrong user
+  }
+  if (in_array('työntekijä', $user->roles)) { // uid not set
+    return TRUE;
+  }
+  
+  return FALSE;
+}
+
+
+/**
+ * Access callback
+ * 
+ * @return boolean TRUE if the current user is an employee or merchant, 
+ * FALSE otherwise
+ * 
+ */
+function reservation_utilities_is_employee_or_merchant() {
+  global $user;
+  if (in_array('työntekijä', $user->roles) || in_array('kauppias', $user->roles)) { 
+    return TRUE;
+  }
+  
+  return FALSE;
+}
+
+
+/**
+ * Access callback
+ * 
+ * @return boolean TRUE if the current user is an admin, FALSE otherwise
+ * 
+ */
+function reservation_utilities_is_admin() {
+  global $user;
+  
+  if (in_array('ylläpitäjä', $user->roles) || in_array('administrator', $user->roles)) { 
+    // an admin
+    return TRUE;
+  }
+  
+  return FALSE;
+}
+
+
+/**
+ * Access callback
+ * 
+ * @return boolean TRUE if the current user is an admin or clerk, FALSE otherwise
+ * 
+ */
+function reservation_utilities_is_admin_or_clerk() {
+  global $user;
+  
+  if (in_array('ylläpitäjä', $user->roles) || in_array('administrator', 
+      $user->roles) || in_array('palkanlaskija', $user->roles)) { 
+    // an admin or clerk
+    return TRUE;
+  }
+  
+  return FALSE;
+}
+
+
+/**
+ * Access callback
+ * 
+ * @return boolean TRUE if the current user is a clerk, FALSE otherwise
+ * 
+ */
+function reservation_utilities_is_clerk() {
+  global $user;
+  
+  if (in_array('palkanlaskija', $user->roles)) { 
+    // a clerk
+    return TRUE;
+  }
+  
+  return FALSE;
+}
+
+
+/**
+ * Checks if a valid phone number is given
+ * 
+ * @param string $phone - phone number
+ * 
+ * @return boolean - TRUE if a valid phone number, FALSE otherwise
+ */
+function reservation_utilities_valid_phone($phone) {
+  // match with at least 3 digits numeric string
+  $pattern = '/^[0-9]{3,}$/';
+  if (preg_match($pattern, $phone) === 1) { // a match
+    return TRUE;
+  }
+  
+  return FALSE;
+}
+
+
+/**
+ * Checks if a given phone number exists in the system
+ * 
+ * @param string $phone - phone number
+ * 
+ * @return boolean - TRUE if the phone number exists, FALSE otherwise
+ */
+function reservation_utilities_phone_exists($phone) {
+  $result = db_query("SELECT entity_id FROM {field_data_field_puhelinnumero} "
+      . "WHERE field_puhelinnumero_value = :phone", array(':phone' => $phone))
+      ->fetchField();
+  
+  if (!$result) { // no record found
+    return FALSE;
+  }
+  
+  return TRUE;
+}
+
+
+/**
+ * Checks if a phone number belongs to a given user
+ * 
+ * @param string $phone - phone number
+ * @param int $uid - user id
+ * 
+ * @return boolean - TRUE if the phone number belongs to the given user, FALSE otherwise
+ */
+function reservation_utilities_user_phone($phone, $uid) {
+  // load user profile
+  $profile_array = profile2_load_by_user($uid);
+  $profile = reset($profile_array);
+  $entity_type = 'profile2';
+  $profile_wrapper = entity_metadata_wrapper($entity_type, $profile);
+  
+  // get phone number for this user
+  $user_phone = $profile_wrapper->field_puhelinnumero->value();
+  
+  if ($user_phone === $phone) { // the numbers match
+    return TRUE;
+  }
+  
+  return FALSE;
+}
+
+
+/**
+ * Return ids of bookings having state(s) for the given user
+ * Optionally set time that defines the time limit for bookings; only bookings 
+ * that are newer are fetched
+ * 
+ * @param int $uid - user id (1 = admin; get all bookings)
+ * @param array $states - booking states default: NULL (bookings with any state are fetched)
+ * @param array $locations - booking locations default: NULL (bookings for all locations are fetched)
+ * @param int $time - default: NULL
+ * @param string $sort - sort by start time (default: ASC)
+ * 
+ * @return array - booking ids
+ * 
+ */
+function reservation_utilities_get_booking_ids($uid, $states = NULL, 
+    $locations = NULL, $time = NULL, $sort = 'ASC') {
+  // create a new query
+  $query = new EntityFieldQuery();
+  // set conditions
+  $query->entityCondition('entity_type', 'varaus'); // booking entity
+  
+  if ($uid != 1) { // not an admin
+    $query->propertyCondition('uid', $uid); // bookings for this user
+  }
+  
+  if (isset($states)) { // state(s) are given
+    $query->fieldCondition('field_slot_state', 'value', $states, 'IN');
+  }
+  
+  if (isset($locations)) { // location(s) are give
+    $query->fieldCondition('field_location_ref', 'tid', $locations, 'IN');
+  }
+  
+  if (isset($time)) { // set time constraint
+    $query->propertyCondition('changed', $time, '>');
+  }
+  
+  if ($sort === 'ASC' || $sort === 'DESC') { // order by start date
+    $query->fieldOrderBy('field_slot_start', 'value', $sort);
+  }
+  
+  // execute query
+  $result = $query->execute();
+  
+  if (empty($result)) { // no id found
+    return array();
+  }
+  
+  // return an array of booking ids
+  $booking_ids = array();
+  foreach ($result['varaus'] as $key => $data) {
+    $booking_ids[] = $key;
+  }
+  
+  return $booking_ids;
+}
+
+
+/**
+ * Get booking data for the current user in a week
+ * 
+ * @param int $start - timestamp for monday 00:00:00 in a week
+ * @param int $uid - user id ($uid = 1 admin)
+ * @param int $pid - employee profile id or 0 if not an employee
+ * @param array $filters - optional filters for selecting bookings
+ * 
+ * @return array - booking data
+ */
+function reservation_utilities_get_booking_data($start, $uid, $pid, $filters) {
+  $booking_data = array();
+  
+  // calculate end of the week as a timestamp
+  $end = $start + 7*24*60*60 - 1;
+  // get ids of bookings in the week for the user
+  $booking_ids = reservation_utilities_get_booking_ids_week($start, $end, $uid,
+      $pid, $filters);
+  
+  foreach ($booking_ids as $key => $value) {
+    // load booking entity
+    $entity_type = 'varaus';
+    $booking_entity_array = entity_load($entity_type, array($value));
+    $booking_entity = reset($booking_entity_array);
+    $booking_wrapper = entity_metadata_wrapper($entity_type, $booking_entity);
+    
+    // get day of the week in numeric format
+    $day_number = date('N', $booking_wrapper->field_slot_date->value());
+    // get employee profile
+    $employee = $booking_wrapper->field_employee_ref->value();
+    if (!empty($employee)) {
+      $employee_name = $employee->field_nimi['und'][0]['safe_value'];
+    }
+    else {
+      $employee_name = '';
+    }
+    
+    // get store of the booking
+    $store = $booking_wrapper->field_store->value();
+    // get tid for store type
+    $type_tid = intval($store->field_type_ref['und'][0]['tid']);
+    
+    switch ($type_tid) {
+      case 16: // K-Market
+        $store_type = 'market';
+        break;
+      case 17: // K-Supermarket
+        $store_type = 'supermarket';
+        break;
+      case 18: // K-Citymarket
+        $store_type = 'citymarket';
+        break;
+      default:
+        $store_type = '';
+    }
+    
+    // store slot data
+    $booking_data[$day_number-1][] = array(
+      'id' => $value,
+      'start_timestamp' => $booking_wrapper->field_slot_start->value(),
+      'start' => format_date($booking_wrapper->field_slot_start->value(), 'custom', 'H:i'),
+      'end' => format_date($booking_wrapper->field_slot_end->value(), 'custom', 'H:i'),
+      'state' => $booking_wrapper->field_slot_state->value(),
+      'store' => $booking_wrapper->field_store->label(),
+      'type' => $store_type,
+      'section' => $booking_wrapper->field_section_ref->label(),
+      'employee' => $employee_name,
+    );
+  }
+  
+  return $booking_data;
+}
+
+
+/**
+ * Get booking ids in a given week
+ * 
+ * @param int $start - timestamp for monday 00:00:00 in a week
+ * @param int $end - timestamp for saturday 23:59:59 in a week
+ * @param int $uid - user id ($uid = 1 admin)
+ * @param int $pid - employee profile id or 0 if not an employee
+ * @param array $filters - optional filters for selecting bookings
+ * 
+ * @return array - booking ids
+ */
+function reservation_utilities_get_booking_ids_week($start, $end, $uid, $pid, $filters = array()) {
+  // get ids for bookings with accepted states (1=ordered, 2=confirmed, 4=ready)
+  $states = [1, 2, 4];
+  // create a new query
+  $query = new EntityFieldQuery();
+  // set conditions
+  $query->entityCondition('entity_type', 'varaus'); // booking entity
+  
+  if ($uid !== 1) { // not an admin
+    if ($pid != 0) { // an employee
+      // bookings for this employee
+      $query->fieldCondition('field_employee_ref', 'target_id', $pid, '=');
+    }
+    else { // a merchant
+      $query->propertyCondition('uid', $uid); // bookings for this merchant
+    }
+  }
+  else { // an admin
+    if (!isset($filters['location'])) { 
+      // location filter not set; use the default location
+      // get all locations
+      $locations = reservation_utilities_get_locations();
+      // get ids for locations
+      $location_ids = array_keys($locations);
+      // get the id for the default location
+      $location_id = reset($location_ids);
+      // set query condition; select only bookings from this location
+      $query->fieldCondition('field_location_ref', 'tid', $location_id, '=');
+    }
+    else { // a location selected
+      $location_id = $filters['location'];
+      // set query condition; select only bookings from this location
+      $query->fieldCondition('field_location_ref', 'tid', $location_id, '=');
+    }
+    
+    if (isset($filters['store']) && $filters['store'] != 0) { // a store selected
+      $store_id = $filters['store'];
+      // set query condition; select only bookings from this store
+      $query->fieldCondition('field_store', 'target_id', $store_id, '=');
+    }
+    
+    if (isset($filters['employee']) && $filters['employee'] != 0) { // an employee selected
+      $employee_uid = $filters['employee'];
+      // set query condition; select only bookings for this employee
+      $query->fieldCondition('field_employee_ref', 'target_id', $employee_uid, '=');
+    }
+  }
+  
+  $query->fieldCondition('field_slot_date', 'value', $start, '>=') // start date
+    ->fieldCondition('field_slot_date', 'value', $end, '<=') // end date
+    ->fieldCondition('field_slot_state', 'value', $states, 'IN') // selected states
+    ->fieldOrderBy('field_slot_start', 'value', 'ASC'); // sort by start ascending order
+  
+  // execute query
+  $result = $query->execute();
+  
+  if (empty($result)) { // no id found
+    return array();
+  }
+  
+  // return an array of booking ids
+  $booking_ids = array();
+  foreach ($result['varaus'] as $key => $data) {
+    $booking_ids[] = $key;
+  }
+  
+  return $booking_ids;
+}
+
+
+/**
+ * Return ids of printed bookings for the given user that are newer than the 
+ * given timestamp
+ * 
+ * @param int $uid - user id
+ * @param int $time - time limit
+ * 
+ * @return array - printed booking ids
+ * 
+ */
+function reservation_utilities_get_printed_bookings_ids($uid, $time) {
+  // create a new query
+  $query = new EntityFieldQuery();
+  // set conditions
+  $query->entityCondition('entity_type', 'printed_booking') // printed booking entity
+    ->propertyCondition('uid', $uid) // bookings for this user
+    ->propertyCondition('created', $time, '>'); // set time constraint
+  
+  // execute query
+  $result = $query->execute();
+  
+  if (empty($result)) { // no id found
+    return array();
+  }
+  
+  // return an array of printed booking ids
+  $printed_booking_ids = array();
+  foreach ($result['printed_booking'] as $key => $data) {
+    $printed_booking_ids[] = $key;
+  }
+  
+  return $printed_booking_ids;
+}
+
+
+/**
+ * Return order id of a booking in the order
+ * 
+ * @param int $booking_id - id of a booking
+ * 
+ * @return int - order id
+ */
+function reservation_utilities_get_order_id_by_booking($booking_id) {
+  // get the id of an order for the given booking 
+  return db_query("SELECT entity_id FROM {field_data_field_slots_reference} "
+      . "WHERE field_slots_reference_target_id = :slot_id", array(':slot_id' => 
+      $booking_id))->fetchField();
+}
+
+
+/**
+ * Return section terms
+ * 
+ * @return array - section terms
+ */
+function reservation_utilities_get_sections() {
+  $vid = 3; // vocabulary id for sections
+  
+  $query = new EntityFieldQuery();
+  $result = $query
+    ->entityCondition('entity_type', 'taxonomy_term')
+    ->propertyCondition('vid', $vid, '=')
+    //->propertyOrderBy('name')
+    ->execute();
+  
+  foreach ($result['taxonomy_term'] as $delta => $tid ) {
+    $term = taxonomy_term_load($delta);
+    
+    $term_names[$delta] = $term->name;
+  }
+  
+  return $term_names;
+}
+
+
+/**
+ * Get location term names
+ * https://api.drupal.org/comment/31383#comment-31383
+ * 
+ * @param array - term ids (default: NULL)
+ * 
+ * @return array - locations
+ */
+function reservation_utilities_get_locations($tids = NULL) {
+  $vid = 2; // vocabulary id for locations
+  
+  $query = new EntityFieldQuery();
+  // set conditions
+  $query = $query
+    ->entityCondition('entity_type', 'taxonomy_term')
+    ->propertyCondition('vid', $vid, '=')
+    ->propertyOrderBy('name');
+  
+  if (isset($tids)) {
+    $query->entityCondition('entity_id', $tids, 'IN');
+  }
+  
+  // execute query
+  $result = $query->execute();
+  
+  foreach ($result['taxonomy_term'] as $delta => $tid ) {
+    $term = taxonomy_term_load($delta);
+    
+    $term_names[$delta] = $term->name;
+  }
+  
+  return $term_names;
+}
+
+
+/**
+ * Return location tid for a given store
+ * 
+ * @param int $store_id
+ * 
+ * @return int - location tid
+ */
+function reservation_utilities_get_location($store_tid) {
+  return db_query("SELECT field_location_ref_store_tid FROM "
+      . "{field_data_field_location_ref_store} WHERE entity_id = :entity_id", 
+      array(':entity_id' => $store_tid))->fetchField();
+}
+
+
+/**
+ * Return stores for the current user
+ * 
+ * @return  array - stores
+ */
+function reservation_utilities_get_stores() {
+  global $user;
+  $stores = array();
+
+  // create a new query
+  $query = new EntityFieldQuery();
+  // set conditions
+  $query->entityCondition('entity_type', 'profile2') // profile entity
+    ->entityCondition('bundle', 'profile_merchant') // merchant profile
+    ->propertyCondition('uid', $user->uid, '=');
+  
+  // execute query
+  $result = $query->execute();
+  
+  if (!empty($result)) {
+    // get profile id
+    foreach ($result['profile2'] as $key => $data) {
+      $profile_id = $key;
+      break;
+    }
+    // get merchant profile
+    $profile = profile2_load_by_user($user->uid);
+    $entity_type = 'profile2';
+    $profile_wrapper = entity_metadata_wrapper($entity_type, 
+        $profile['profile_merchant']);
+    
+    foreach ($profile_wrapper->field_store_ref as $delta => $store_wrapper) {
+      // get entity id and name for a store
+      $stores[$store_wrapper->getIdentifier()] = $store_wrapper->label();
+    }
+  }
+  
+  return $stores;
+}
+
+
+/**
+ * Return stores for the given user
+ * 
+ * @param int $uid - user id
+ * 
+ * @return  array - stores
+ */
+function reservation_utilities_get_stores_by_uid($uid) {
+  $stores = array();
+
+  // create a new query
+  $query = new EntityFieldQuery();
+  // set conditions
+  $query->entityCondition('entity_type', 'profile2') // profile entity
+    ->entityCondition('bundle', 'profile_merchant') // merchant profile
+    ->propertyCondition('uid', $uid, '=');
+  
+  // execute query
+  $result = $query->execute();
+  
+  if (!empty($result)) {
+    // get profile id
+    foreach ($result['profile2'] as $key => $data) {
+      $profile_id = $key;
+      break;
+    }
+    // get merchant profile
+    $profile = profile2_load_by_user($uid);
+    $entity_type = 'profile2';
+    $profile_wrapper = entity_metadata_wrapper($entity_type, 
+        $profile['profile_merchant']);
+    
+    foreach ($profile_wrapper->field_store_ref as $delta => $store_wrapper) {
+      // get entity id and name for a store
+      $stores[$store_wrapper->getIdentifier()] = $store_wrapper->label();
+    }
+  }
+  
+  return $stores;
+}
+
+
+/**
+ * Return stores for the given location (or all stores)
+ * 
+ * @param array $location_tids - tids for locations (default: empty)
+ * 
+ * @return  array - store names keyed by id
+ */
+function reservation_utilities_get_stores_by_locations($location_tids = array()) {
+  $stores = array();
+  $store_ids = array();
+
+  // get entity ids for stores in the given location
+  $query = new EntityFieldQuery();
+  $query->entityCondition('entity_type', 'kauppa');
+  
+  if (!empty($location_tids)) { // location(s) selected
+    $query->fieldCondition('field_location_ref_store', 'tid', $location_tids, 'IN');
+  }
+  
+  $result = $query->execute();
+  
+  if (empty($result)) { // no stores for this location
+    return array();
+  }
+  
+  foreach ($result['kauppa'] as $key => $value) {
+    $store_ids[] = $key;
+  }
+  
+  // get store ids and names for the given ids
+  $stores_array = db_query("SELECT id, title FROM {eck_kauppa} WHERE id IN (:ids)"
+      . "ORDER BY title", array(':ids' => $store_ids))->fetchAllAssoc('id');
+  
+  foreach ($stores_array as $key => $data) {
+    $stores[$key] = $data->title;
+  }
+  
+  return $stores;
+}
+
+
+/**
+ * Return merchants for the given store
+ * 
+ * @param int $store_id - id for a store
+ * 
+ * @return  array - merchant names keyed by user ids
+ */
+function reservation_utilities_get_merchants($store_id) {
+  $merchants = array();
+
+  // get ids for merchant profiles for the given store
+  $merchant_ids_array = db_query("SELECT entity_id FROM {field_data_field_store_ref}"
+      . " WHERE field_store_ref_target_id = :store_id", array(':store_id' => 
+      $store_id))->fetchAllAssoc('entity_id');
+  
+  if (empty($merchant_ids_array)) { // no merchants for this store
+    return array();
+  }
+  
+  foreach ($merchant_ids_array as $key => $value) {
+    // get user id for this merchant
+    $uid = db_query("SELECT uid FROM {profile} WHERE pid = :pid", 
+        array(':pid' => $key))->fetchField();
+    // name for this merchant
+    $name = db_query("SELECT field_nimi_value FROM {field_data_field_nimi} WHERE"
+        . " entity_id = :entity_id", array(':entity_id' => $key))->fetchField();
+    
+    $merchants[$uid] = $name;
+  }
+  
+  return $merchants;
+}
+
+
+/**
+ * Return merchants for the given location
+ * 
+ * @param int $tid - the term id for a location
+ * 
+ * @return  array - merchant names keyed by user ids
+ */
+function reservation_utilities_get_merchants_by_loc($tid) {
+  $merchants = array();
+  $bundle = 'profile_merchant';
+
+  // get ids for merchant profiles for the given location
+  $merchant_ids_array = db_query("SELECT entity_id FROM {"
+      . "field_data_field_location_ref_user} WHERE field_location_ref_user_tid "
+      . "= :tid AND bundle = :bundle", array(':tid' => $tid, ':bundle' => 
+      $bundle))->fetchAllAssoc('entity_id');
+  
+  if (empty($merchant_ids_array)) { // no merchants for this store
+    return array();
+  }
+  
+  foreach ($merchant_ids_array as $key => $value) {
+    // get user id for this merchant
+    $uid = db_query("SELECT uid FROM {profile} WHERE pid = :pid", 
+        array(':pid' => $key))->fetchField();
+    // name for this merchant
+    $name = db_query("SELECT field_nimi_value FROM {field_data_field_nimi} WHERE"
+        . " entity_id = :entity_id", array(':entity_id' => $key))->fetchField();
+    
+    $merchants[$uid] = $name;
+  }
+  
+  return $merchants;
+}
+
+
+/**
+ * Return TRUE if the given employee has a collapsing booking in the time interval
+ * 
+ * @param int $pid - profile id for an employee
+ * @param int $start - timestamp for the start of a booking
+ * @param int $end - timestamp for the end of the booking
+ * 
+ * @return boolean - if the given employee has a collapsing booking in the interval
+ */
+function reservation_utilities_is_collapsing($pid, $start, $end) {
+  // create a new query
+  $query = new EntityFieldQuery();
+  // set conditions
+  $query->entityCondition('entity_type', 'varaus') // booking entity
+    ->fieldCondition('field_slot_state', 'value', 2, '=') // 'confirmed' state
+    ->fieldCondition('field_employee_ref', 'target_id', $pid, '=') // profile id
+    ->fieldCondition('field_slot_start', 'value', $end, '<') // start* < end
+    ->fieldCondition('field_slot_end', 'value', $start, '>'); // end* > start
+  
+  // execute query
+  $result = $query->execute();
+    
+  if (!empty($result)) { // booking(s) found for this interval
+    return TRUE;
+  }
+  
+  return FALSE;
+}
+
+
+/**
+ * Return TRUE if the given employee has a collapsing reservation in the time interval
+ * 
+ * @param int $pid - profile id for an employee
+ * @param int $start - timestamp for the start of a booking
+ * @param int $end - timestamp for the end of the booking
+ * 
+ * @return boolean - if the given employee has a collapsing reservation in the interval
+ */
+function reservation_utilities_is_reserved($pid, $start, $end) {
+  // get user id
+  $uid = reservation_utilities_get_uid_by_profile_id($pid);
+    
+  // create a new query
+  $query = new EntityFieldQuery();
+  
+  // set conditions
+  $query->entityCondition('entity_type', 'employee_reservation') // employee_reservation entity
+    ->propertyCondition('uid', $uid)
+    ->fieldCondition('field_res_state', 'value', 1, '=') // 'confirmed' state
+    ->fieldCondition('field_slot_start', 'value', $end, '<') // start* < end
+    ->fieldCondition('field_slot_end', 'value', $start, '>'); // end* > start
+  
+  // execute query
+  $result = $query->execute();
+    
+  if (!empty($result)) { // reservation found for this interval
+    return TRUE;
+  }
+  
+  return FALSE;
+}
+
+
+/**
+ * Return ids of reservations having state(s) for the given user
+ * 
+ * @param int $uid - user id (1 = admin; get all reservations)
+ * @param array $states - reservations states default: NULL (reservations with any state are fetched)
+ * @param array $locations - reservations locations default: empty (reservations for all locations are fetched)
+ * 
+ * @return array - reservations ids
+ * 
+ */
+function reservation_utilities_get_reservation_ids($uid, $states = NULL, $locations = array()) {
+  // create a new query
+  $query = new EntityFieldQuery();
+  // set conditions
+  $query->entityCondition('entity_type', 'employee_reservation');
+  
+  if ($uid != 1) { // not an admin
+    $query->propertyCondition('uid', $uid); // reservations for this user
+  }
+  
+  if (isset($states)) { // state(s) are given
+    $query->fieldCondition('field_res_state', 'value', $states, 'IN');
+  }
+  
+  if (isset($locations) && !empty($locations)) { // location(s) are given
+    $query->fieldCondition('field_location_ref_user', 'tid', $locations, 'IN');
+  }
+  
+  // execute query
+  $result = $query->execute();
+  
+  if (empty($result)) { // no id found
+    return array();
+  }
+  
+  // return an array of reservation ids
+  $reservation_ids = array();
+  foreach ($result['employee_reservation'] as $key => $data) {
+    $reservation_ids[] = $key;
+  }
+  
+  return $reservation_ids;
+}
+
+
+/**
+ * Return user and profile ids for pending merchants
+ * 
+ * @param array - term ids for locations (default: empty)
+ * 
+ * @return array - ids for pending merchant users (both user and profile ids)
+ */
+function reservation_utilities_get_pending_merchant_ids($locations = array()) {
+  // create a new query
+  $query = new EntityFieldQuery();
+  // set conditions
+  $query->entityCondition('entity_type', 'user') // user entity
+    ->propertyCondition('status', 0) // select blocked users
+    ->propertyCondition('uid', 0, '!='); // not select anonymous user
+  
+  // execute query
+  $result = $query->execute();
+  
+  if (empty($result)) { // no id found
+    return array();
+  }
+  
+  $user_ids = array();
+  
+  foreach ($result['user'] as $key => $data) {
+    $user_ids[] = $key;
+  }
+  
+  // get ids for merchants
+  $result = db_query("SELECT uid, pid FROM {profile} WHERE uid IN (:uids)", 
+      array(':uids' => $user_ids))->fetchAllAssoc('uid');
+  
+  if (empty($result)) { // no id found
+    return array();
+  }
+  
+  $merchant_ids = array();
+  
+  foreach ($result as $key => $value) {
+    $merchant_ids[$key] = array(
+      'uid' => $key,
+      'pid' => $value->pid,
+    );
+  }
+  
+  if (isset($locations) && !empty($locations)) {
+    $location_keys = array_keys($locations); // get location tids
+    
+    foreach ($merchant_ids as $key => $data) {
+      $delete_flag = TRUE;
+      // load user profile
+      $profile = profile2_load($data['pid']);
+      $entity_type = 'profile2';
+      $profile_wrapper = entity_metadata_wrapper($entity_type, $profile);
+      // get location term data
+      $location_data = $profile_wrapper->field_location_ref_user->value();
+      
+      foreach ($location_data as $key2 => $data2) {
+        if (in_array($data2->tid, $location_keys)) { // location match; do not delete row
+          $delete_flag = FALSE;
+          break;
+        }
+      }
+      if ($delete_flag) { // no location matched; delete the row
+        unset($merchant_ids[$key]);
+      }
+    }
+  }
+  
+  return $merchant_ids;
+}
+
+
+/**
+ * Get timestamp for monday in the week of a date
+ * 
+ * @param int $date_stamp - timestamp for a date
+ * 
+ * @return int - timestamp
+ */
+function reservation_utilities_monday_timestamp($date_stamp) {
+  // get the day number in a week
+  $day_number = date('N', $date_stamp);
+  if ($day_number === '1') { // monday
+    return $date_stamp;
+  }
+  
+  // get the difference (in seconds) between this date and monday
+  $diff = ($day_number - 1) * 86400;
+  
+  // return the timestamp for monday in this week
+  return $date_stamp - $diff;
+}
+
+
+/**
+ * Get employees for given locations
+ * 
+ * @param array $locations - location term tids
+ * 
+ * @return array - employees keyed by user profile id
+ */
+function reservation_utilities_get_employees($locations) {
+  $employees = array(0 => 'Valitse työntekijä');
+  $employee_ids = array();
+  
+  // create a new query
+  $query = new EntityFieldQuery();
+  // set conditions
+  $query->entityCondition('entity_type', 'profile2') // profile entity
+    ->entityCondition('bundle', 'profile_employee') // employee profile
+    ->fieldCondition('field_location_ref_user', 'tid', $locations, 'IN'); // given locations
+  
+  // execute query
+  $result = $query->execute();
+  
+  if (empty($result)) { // no employees found; return an empty array
+    return array();
+  }
+  
+  foreach ($result['profile2'] as $key => $value) {
+    $employee_ids[] = $key;
+  }
+  
+  // get employee ids and names for the given ids
+  $employee_array = db_query("SELECT entity_id, field_nimi_value FROM "
+      . "{field_data_field_nimi} WHERE entity_id IN (:entity_ids)ORDER BY "
+      . "field_nimi_value", array(':entity_ids' => $employee_ids))
+      ->fetchAllAssoc('entity_id');
+  
+  foreach ($employee_array as $key => $data) {
+    $employees[$key] = $data->field_nimi_value;
+  }
+  
+  return $employees;
+}
+
+
+/**
+ * Filter out employees that have collapsing bookings with this
+ * booking
+ * 
+ * @param array $employees - profile ids for employees
+ * @param int $booking_id - booking entity id
+ * 
+ * @return array - filtered employee names keyed by profile ids
+ */
+function reservation_utilities_filter_collapsed($employees, $booking_id) {
+  $filtered = array(0 => 'Valitse työntekijä');
+  
+  // load booking entity
+  $entity_type = 'varaus';
+  $booking_entity_array = entity_load($entity_type, array($booking_id));
+  $booking_entity = reset($booking_entity_array);
+  $booking_wrapper = entity_metadata_wrapper($entity_type, $booking_entity);
+  
+  // get profile id for the current employee assigned to this booking
+  $pid = $booking_wrapper->field_employee_ref->getIdentifier();
+  
+  if (!empty($pid)) { // employee set
+    // get profile
+    $profile = $booking_wrapper->field_employee_ref->value();
+    // get name for the current employee assigned to this booking
+    $name = $profile->field_nimi['und'][0]['safe_value'];
+    // add profile id and name to the filtered array
+    $filtered[$pid] = $name;
+  }
+  
+  // get timestamp for start
+  $start = $booking_wrapper->field_slot_start->value();
+  // get timestamp for end
+  $end = $booking_wrapper->field_slot_end->value();
+  
+  foreach ($employees as $index => $pid) {
+    // create a new query
+    $query = new EntityFieldQuery();
+    // set conditions
+    $query->entityCondition('entity_type', 'varaus') // booking entity
+      ->fieldCondition('field_slot_state', 'value', 2, '=') // 'confirmed' state
+      ->fieldCondition('field_employee_ref', 'target_id', $pid, '=') // profile id
+      ->fieldCondition('field_slot_start', 'value', $end, '<') // start* < end
+      ->fieldCondition('field_slot_end', 'value', $start, '>'); // end* > start
+    
+    // execute query
+    $result = $query->execute();
+    
+    if (empty($result)) { // no bookings found for this interval; include profile
+      // load user profile
+      $entity_type = 'profile2';
+      $profile = profile2_load($pid);
+      $profile_wrapper = entity_metadata_wrapper($entity_type, $profile);
+      // store pid and employee name
+      $filtered[$pid] = $profile_wrapper->field_nimi->value();
+    }
+  }
+  
+  return $filtered;
+}
+
+
+/**
+ * Filter out employees that have collapsing reservations with this
+ * booking
+ * 
+ * @param array $employees - profile names for employees keyed by their ids
+ * @param int $booking_id - booking entity id
+ * 
+ * @return array - filtered employee names keyed by profile ids
+ */
+function reservation_utilities_filter_reservations($employees, $booking_id) {
+  $filtered = $employees;
+  
+  // load booking entity
+  $entity_type = 'varaus';
+  $booking_entity_array = entity_load($entity_type, array($booking_id));
+  $booking_entity = reset($booking_entity_array);
+  $booking_wrapper = entity_metadata_wrapper($entity_type, $booking_entity);
+  
+  // get timestamp for start
+  $start = $booking_wrapper->field_slot_start->value();
+  // get timestamp for end
+  $end = $booking_wrapper->field_slot_end->value();
+  
+  // get profile id for the current employee assigned to this booking
+  $profile_id = $booking_wrapper->field_employee_ref->getIdentifier();
+  
+  foreach ($employees as $pid => $data) {
+    // get user id
+    $uid = reservation_utilities_get_uid_by_profile_id($pid);
+    
+    // create a new query
+    $query = new EntityFieldQuery();
+    // set conditions
+    $query->entityCondition('entity_type', 'employee_reservation') // employee_reservation entity
+      ->propertyCondition('uid', $uid)
+      ->fieldCondition('field_res_state', 'value', 1, '=') // 'confirmed' state
+      ->fieldCondition('field_slot_start', 'value', $end, '<') // start* < end
+      ->fieldCondition('field_slot_end', 'value', $start, '>'); // end* > start
+    
+    // execute query
+    $result = $query->execute();
+    
+    if (!empty($result) && $pid != $profile_id) { 
+      // a reservation found for this interval
+      // exclude profile if it is not yet assigned to this user
+      unset($filtered[$pid]);
+    }
+  }
+  
+  return $filtered;
+}
+
+
+/**
+ * Get user email by profile id
+ * 
+ * @param int $profile_id - user profile id
+ * 
+ * @return string - email address
+ */
+function reservation_utilities_get_email_by_profile_id($profile_id) {
+  // get uid by profile id
+  $uid = db_query("SELECT uid FROM {profile} WHERE pid = :pid", array(':pid' => 
+      $profile_id))->fetchField();
+  
+  // return email
+  return db_query("SELECT mail FROM {users} WHERE uid = :uid", array(':uid' => 
+      $uid))->fetchField();
+}
+
+
+/**
+ * Get user email by user id
+ * 
+ * @param int $uid - user id
+ * 
+ * @return string - email address
+ */
+function reservation_utilities_get_email_by_user_id($uid) {
+  // return email
+  return db_query("SELECT mail FROM {users} WHERE uid = :uid", array(':uid' => 
+      $uid))->fetchField();
+}
+
+
+/**
+ * Return the store id for a given store name
+ * 
+ * @param string $store_name - store name
+ * 
+ * @return int - store id
+ */
+function reservation_utilities_get_store_id($store_name) {
+  return db_query("SELECT id FROM {eck_kauppa} WHERE title = :title", array(
+    ':title' => $store_name))->fetchField();
+}
+
+
+/**
+ * Examines if parameter differs from zero
+ * 
+ * @param mixed $var - variable to test
+ * 
+ * @return boolean - whether parameter differs from zero
+ */
+function reservation_utilities_is_non_zero($var) {
+  return $var !== 0;
+}
+
+
+/**
+ * Return locations for a given user profile
+ * 
+ * @param int $profile_id - user profile id
+ * 
+ * @return array - location names keyed by their ids
+ */
+function reservation_utilities_get_locations_by_pid($profile_id) {
+  $locations = array();
+  
+  // load user profile
+  $entity_type = 'profile2';
+  $profile = profile2_load($profile_id);
+  $profile_wrapper = entity_metadata_wrapper($entity_type, $profile);
+  
+  foreach ($profile_wrapper->field_location_ref_user as $delta => $location) {
+    // store location
+    $locations[$location->getIdentifier()] = $location->label();
+  }
+  
+  return $locations;
+}
+
+
+/**
+ * Return user profile id for a given user
+ * 
+ * @param int $uid - user id
+ * 
+ * @return int - user profile id
+ */
+function reservation_utilities_get_profile_id_by_uid($uid) {
+  return db_query("SELECT pid FROM {profile} WHERE uid = :uid", array(':uid' => 
+      $uid))->fetchField();
+}
+
+
+/**
+ * Return user id for a given user profile
+ * 
+ * @param int $pid - user profile id
+ * 
+ * @return int - user id
+ */
+function reservation_utilities_get_uid_by_profile_id($pid) {
+  return db_query("SELECT uid FROM {profile} WHERE pid = :pid", array(':pid' => 
+      $pid))->fetchField();
+}
+
+
+/**
+ * Return employee document types keyed by tids
+ * 
+ * @return array document type names
+ */
+function reservation_utilities_get_document_types() {
+  $types = array();
+  $vid = 5; // vocabulary id for documents
+  
+  $result = db_query("SELECT tid, name FROM {taxonomy_term_data} WHERE vid = "
+      . ":vid", array(':vid' => $vid))->fetchAllAssoc('tid');
+  
+  foreach ($result as $key => $value) {
+    $types[$key] = $value->name;
+  }
+  
+  return $types;
+}
+
+
+/**
+ * Return employee file ids for a given user the most recent first
+ * 
+ * @param int $uid user id
+ * 
+ * @return array employee_file entity ids
+ */
+function reservation_utilities_get_file_entity_ids($uid) {
+  $file_ids = array();
+  
+  // create a new query
+  $query = new EntityFieldQuery();
+  // set conditions
+  $query->entityCondition('entity_type', 'employee_file') // employee_file entity
+    ->propertyCondition('uid', $uid) // given user
+    ->propertyOrderBy('created', 'DESC');
+  
+  // execute query
+  $result = $query->execute();
+  
+  if (!empty($result)) {
+    foreach ($result['employee_file'] as $key => $data) {
+      $file_ids[] = $key;
+    }
+  }
+  
+  return $file_ids;
+}
+
+
+/**
+ * Get store type term names
+ * https://api.drupal.org/comment/31383#comment-31383
+ * 
+ * @return array - store types
+ */
+function reservation_utilities_get_store_types() {
+  $vid = 6; // vocabulary id for store types
+  
+  $query = new EntityFieldQuery();
+  $result = $query
+    ->entityCondition('entity_type', 'taxonomy_term')
+    ->propertyCondition('vid', $vid, '=')
+    ->propertyOrderBy('name')
+    ->execute();
+  
+  foreach ($result['taxonomy_term'] as $delta => $tid ) {
+    $term = taxonomy_term_load($delta);
+    
+    $term_names[$delta] = $term->name;
+  }
+  
+  return $term_names;
+}
+
+
+/**
+ * Format time interval
+ * Modfied from https://api.drupal.org/api/drupal/includes!common.inc/function/format_interval/7.x
+ * 
+ */
+function reservation_utilities_format_interval($interval, $granularity = 2, $langcode = NULL) {
+  $units = array(
+    '1 hour|@count hours' => 3600,
+    '1 min|@count min' => 60,
+  );
+  $output = '';
+  foreach ($units as $key => $value) {
+    $key = explode('|', $key);
+    if ($interval >= $value) {
+      $output .= ($output ? ' ' : '') . format_plural(floor($interval / $value), $key[0], $key[1], array(), array(
+        'langcode' => $langcode,
+      ));
+      $interval %= $value;
+      $granularity--;
+    }
+    if ($granularity == 0) {
+      break;
+    }
+  }
+  return $output ? $output : t('0 sec', array(), array(
+    'langcode' => $langcode,
+  ));
+}

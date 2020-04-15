@@ -1,0 +1,1470 @@
+<?php
+
+/**
+ * @file reservation_booking_views.module
+ * Provides views for bookings in the reservation system
+ */
+
+/**
+ * Implements hook_permission
+ */
+function reservation_booking_views_permission() {
+  return array(
+    'administer reservation booking views' => array(
+      'title' => t('Admister reservation booking views'),
+      'descripiton' => t('Execute administrative tasks for reservation booking '
+          . 'views'),
+    ),
+  );
+}
+
+
+/**
+ * Implements hook_menu()
+ */
+function reservation_booking_views_menu() {
+  $items = array();
+  
+  $items['tyovuorot'] = array(
+    'title' => 'Vuorokalenteri',
+    'page callback' => 'reservation_booking_views_page',
+    'access callback' => 'user_is_logged_in',
+    'type' => MENU_NORMAL_ITEM,
+  );
+  
+  return $items;
+}
+
+
+/**
+ * Implements hook_mail()
+ */
+function reservation_booking_views_mail($key, &$message, $params) {
+  switch ($key) {
+    case 'booking_confirm_merchant':
+    case 'booking_confirm_employee':  
+      if (isset($params['subject'])) {
+        $message['subject'] = $params['subject'];
+      }
+      if (isset($params['body'])) {
+        $message['body'][] = $params['body'];
+      }
+      if (isset($params['headers']) && is_array($params['headers'])) {
+        $message['headers'] += $params['headers'];
+      }
+      break;
+  }
+}
+
+
+/**
+ * Implements hook_forms()
+ */
+function reservation_booking_views_forms($form_id, $args) {
+  $forms = array();
+  
+  if (strncmp($form_id, 'reservation_booking_views_edit_form_', 36) === 0) {
+    $forms[$form_id] = array(
+      'callback' => 'reservation_booking_views_edit_form',
+    );
+  }
+  else if (strncmp($form_id, 'reservation_booking_views_remove_form_', 38) === 0) {
+    $forms[$form_id] = array(
+      'callback' => 'reservation_booking_views_remove_form',
+    );
+  }
+  
+  return $forms;
+}
+
+
+/**
+ * Implements hook_form_alter()
+ */
+function reservation_booking_views_form_alter(&$form, &$form_state, $form_id) {
+  if (strncmp($form_id, 'reservation_booking_views_edit_form_', 36) === 0) {
+    // get location tid
+    $location = $form_state['build_info']['args'][0];
+    // get booking id
+    $booking_id = $form_state['build_info']['args'][1];
+    
+    // load booking entity
+    $entity_type = 'varaus';
+    $booking_entity_array = entity_load($entity_type, array($booking_id));
+    $booking_entity = reset($booking_entity_array);
+    $booking_wrapper = entity_metadata_wrapper($entity_type, $booking_entity);
+    
+    // get sections
+    $sections = reservation_utilities_get_sections();
+    
+    // close window icon
+    $form['close'] = array(
+      '#markup' => '<div class="close-window" id="close-window-' . $booking_id 
+          . '"><img src="' . drupal_get_path('module', 
+          'reservation_booking_views') . '/images/icon-close.png" /></div>',
+      '#weight' => -2,
+    );
+    
+    // the name of a store
+    $form['store'] = array(
+      '#markup' => '<div class="store-name">' . $booking_wrapper->field_store
+          ->label() . '</div>',
+      '#weight' => -1,
+    );
+    
+    $form['date'] = array(
+      '#type' => 'date_popup',
+      '#title' => 'Päivämäärä',
+      '#date_format' => 'd.m.Y',
+      '#date_year_range' => '0:+3',
+      '#default_value' => format_date($booking_wrapper->field_slot_date->value(),
+          'custom', 'Y-m-d'),
+      '#required' => TRUE,
+      '#weight' => 0,
+    );
+  
+    $form['start_time'] = array(
+      '#type' => 'date_popup',
+      '#title' => 'Alkaa',
+      '#date_format' => 'H:i',
+      '#default_value' => format_date($booking_wrapper->field_slot_start->value(),
+          'custom', 'Y-m-d H:i'),
+      '#required' => TRUE,
+      '#timepicker' => 'timepicker',
+      '#timepicker_options' => array(
+        'rows' => 6,
+        'showCloseButton' => TRUE,
+        'closeButtonText' => t('Close'),
+        'hourText' => t('Hour'),
+        'minuteText' => t('Minute'),
+        'amPmText' => array(t('AM'), t('PM')),
+      ),
+      '#weight' => 1,
+    );
+  
+    $form['end_time'] = array(
+      '#type' => 'date_popup',
+      '#title' => 'Päättyy',
+      '#date_format' => 'H:i',
+      '#default_value' => format_date($booking_wrapper->field_slot_end->value(),
+          'custom', 'Y-m-d H:i'),
+      '#required' => TRUE,
+      '#timepicker' => 'timepicker',
+      '#timepicker_options' => array(
+        'rows' => 6,
+        'showCloseButton' => TRUE,
+        'closeButtonText' => t('Close'),
+        'hourText' => t('Hour'),
+        'minuteText' => t('Minute'),
+        'amPmText' => array(t('AM'), t('PM')),
+      ),
+      '#weight' => 2,
+    );
+    
+    // section selection
+    $form['section'] = array(
+      '#type' => 'select',
+      '#title' => 'Osasto',
+      '#options' => $sections,
+      '#default_value' => $booking_wrapper->field_section_ref->getIdentifier(),
+      '#weight' => 3,
+    );
+    
+    if (reservation_utilities_is_admin()) { // an admin
+      // get employees for this location
+      $employees = reservation_utilities_get_employees(array($location));
+      // unset 'Select employee' item
+      unset($employees[0]);
+      // get selected employee (if exists)
+      $employee_selected = $booking_wrapper->field_employee_ref->getIdentifier();
+      // filter out employees that have collapsing bookings
+      $employees_filtered = reservation_utilities_filter_collapsed(
+          array_keys($employees), $booking_id);
+      
+      // filter out employees that have confirmed reservation collapsing with 
+      // this booking
+      $employees_filtered = reservation_utilities_filter_reservations(
+          $employees_filtered, $booking_id);
+      
+      // an employee selection
+      $form['employee'] = array(
+        '#type' => 'select',
+        '#title' => t('Employee'),
+        '#options' => $employees_filtered,
+        '#default_value' => $employee_selected,
+        '#weight' => 4,
+      );
+      
+      // get default value for confirm booking
+      $confirm_default = 0;
+      if ($booking_wrapper->field_slot_state->value() == 2) {
+        $confirm_default = 1;
+      }
+      
+      // confirm booking
+      $form['confirm'] = array(
+        '#type' => 'checkbox',
+        '#title' => 'Vahvista varaus',
+        '#default_value' => $confirm_default,
+        '#weight' => 5,
+      );
+    }
+    
+    // add booking id as a hidden field
+    $form['booking_id'] = array(
+      '#type' => 'hidden',
+      '#value' => $booking_id,
+    );
+    
+    // attach a custom js
+    $form['#attached']['js'][] = array(
+      'type' => 'file',
+      'data' => drupal_get_path('module', 'reservation_booking_views') 
+          . '/js/bookingsViewsEdit.js',
+    );
+  }
+  else if (strncmp($form_id, 'reservation_booking_views_remove_form_', 38) === 0) {
+    // get booking id
+    $booking_id = $form_state['build_info']['args'][0];
+    
+    // add booking id as a hidden field
+    $form['booking_id'] = array(
+      '#type' => 'hidden',
+      '#value' => $booking_id,
+    );
+  }
+}
+
+
+/**
+ * BLOCKS CONFIGURATION
+ */
+
+/**
+ * Implements hook_block_info()
+ */
+function reservation_booking_views_block_info() {
+  $blocks['info'] = array(
+    'info' => t('Info'),
+    'visibility' => BLOCK_VISIBILITY_LISTED,
+    'pages' => 'tyovuorot',
+  );
+  
+  return $blocks;
+}
+
+
+/**
+ * Implements hook_block_view()
+ */
+function reservation_booking_views_block_view($delta = '') {
+  $block = array();
+  
+  switch ($delta) {
+    case 'info':
+      // info block for calendar
+      $block['subject'] = '';
+      $block['content'] = reservation_booking_views_get_info();
+      break;
+    
+    default:
+      break;
+  }
+
+  return $block;
+}
+
+
+/**
+ * Block content callback - info block for calendar
+ * 
+ * @return string - block content
+ */
+function reservation_booking_views_get_info() {
+  return '<div class="calendar-info"><div class="not-confirmed"><span class="'
+      . 'color"></span><span class="text">Ei vahvistettu</span></div><div class='
+      . '"confirmed"><span class="color"></span><span class="text">Vahvistettu'
+      . '</span></span></div></div>';
+}
+
+
+/**
+ * PAGE CALLBACKS
+ */
+
+/**
+ * Page callback - booking calendar page
+ */
+function reservation_booking_views_page() {
+  global $user;
+  
+  $markup = '';
+  
+  // get booking calendar form
+  $calendar_form = drupal_get_form('reservation_booking_views_calendar_form');
+  // render the form
+  $markup .= drupal_render($calendar_form);
+  
+  if (in_array('ylläpitäjä', $user->roles) || in_array('administrator', 
+      $user->roles)) { // an admin
+    // get location select form
+    $location_form = drupal_get_form(
+        'reservation_booking_views_calendar_location_form');
+    // render the form
+    $markup .= drupal_render($location_form);
+    
+    // get store select form
+    $store_form = drupal_get_form(
+        'reservation_booking_views_calendar_store_form');
+    // render the form
+    $markup .= drupal_render($store_form);
+    
+    // get employee select form
+    $employee_form = drupal_get_form(
+        'reservation_booking_views_calendar_employee_form');
+    // render the form
+    $markup .= drupal_render($employee_form);
+  }
+  
+  if (in_array('ylläpitäjä', $user->roles) || in_array('administrator', 
+      $user->roles) || in_array('kauppias', $user->roles)) { // an admin or merchant
+    // get week number select form
+    $week_form = drupal_get_form(
+        'reservation_booking_views_calendar_week_number_form');
+    // render the form
+    $markup .= drupal_render($week_form);
+    
+    // get year select form
+    $year_form = drupal_get_form(
+        'reservation_booking_views_calendar_year_form');
+    // render the form
+    $markup .= drupal_render($year_form);
+  }
+  
+  // render calendar
+  $markup .= reservation_booking_views_create_calendar();
+  
+  return $markup;
+}
+
+
+/**
+ * FORM CALLBACKS
+ */
+
+/**
+ * Form callback - booking calendar form
+ */
+function reservation_booking_views_calendar_form($form, &$form_state) {
+  global $user;
+  
+  // get query parameters
+  $parameters = drupal_get_query_parameters();
+  
+  // form title
+  $form['title'] = array(
+    '#markup' => '<h2>Työvuorokalenteri</h2>',
+  );
+  
+  // previous button
+  $form['previous'] = array(
+    '#type' => 'submit',
+    '#value' => t('< Previous'),
+    '#submit' => array('reservation_booking_views_calendar_form_previous'),
+  );
+  
+  if (in_array('työntekijä', $user->roles)) { // an employee
+    $form['reservation'] = array(
+      '#markup' => '<div class="link-to-reservation"><a href="/lisaa-toive">'
+          . 'Lisää toive</a></div>',
+    );
+  }
+  
+  if (in_array('ylläpitäjä', $user->roles) || in_array('administrator', 
+      $user->roles)) { // an admin
+    
+    // get locations
+    $locations = reservation_utilities_get_locations();
+    
+    if (isset($parameters['location'])) { // location set
+      // get location id
+      $location_id = $parameters['location'];
+    }
+    else {
+      // get default location
+      foreach ($locations as $key => $value) {
+        $location_id = $key;
+        break;
+      }
+    }
+    
+    // get current path
+    $path = request_path();
+    
+    if (!isset($parameters['location'])) { // location not set
+      // set the default location
+      $parameters['location'] = $location_id;
+    }
+    
+    // insert path as a parameter
+    $parameters['dest_path'] = $path;
+    
+    // create url with parameters
+    $url = url('/lisaa-tyovuoro', array('query' => $parameters));
+    
+    // link to new booking page
+    $form['new_booking'] = array(
+      '#markup' => '<div class="new-booking-link"><a href="' . $url . '">'
+          . 'Lisää työvuoro</a></div>',
+    );
+  }
+  
+  // next button
+  $form['next'] = array(
+    '#type' => 'submit',
+    '#value' => t('Next >'),
+    '#submit' => array('reservation_booking_views_calendar_form_next'),
+  );
+  
+  return $form;
+}
+
+
+/**
+ * Form callback - booking calendar select location form
+ */
+function reservation_booking_views_calendar_location_form($form, &$form_state) { 
+  global $user;
+  
+  // get query parameters
+  $parameters = drupal_get_query_parameters();
+  
+  // load user account
+  $account = user_load($user->uid);
+  
+  if (isset($account->field_location_ref_user) && !empty($account->field_location_ref_user)) {
+    $tids = array();
+    // get location ids
+    foreach ($account->field_location_ref_user['und'] as $delta => $tid) {
+      $tids[] = $tid['tid'];
+    }
+    // get locations for this user
+    $locations = reservation_utilities_get_locations($tids);
+  }
+  else {
+   // get all locations
+   $locations = reservation_utilities_get_locations();
+  }
+  
+  if (isset($parameters['location'])) { // location set
+    // get location id
+    $location_id = $parameters['location'];
+  }
+  else {
+    // get default location
+    foreach ($locations as $key => $value) {
+      $location_id = $key;
+      break;
+    }
+  }
+  
+  // location selection
+  $form['location'] = array(
+    '#type' => 'select',
+    '#title' => 'Valitse kaupunki/alue',
+    '#options' => $locations,
+    '#default_value' => $location_id,
+    '#attributes' => array(
+      'onChange' => 'this.form.submit();'
+    ),
+  );
+    
+  // form submit
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => 'Valitse kaupunki',
+    '#attributes' => array(
+      'class' => array('js-hide'),
+    ),
+  );
+  
+  return $form;
+}
+
+
+/**
+ * Form callback - booking calendar select store form
+ */
+function reservation_booking_views_calendar_store_form($form, &$form_state) {
+  global $user;
+  
+  // get query parameters
+  $parameters = drupal_get_query_parameters();
+  
+  // load user account
+  $account = user_load($user->uid);
+  
+  if (isset($account->field_location_ref_user) && !empty($account->field_location_ref_user)) {
+    $tids = array();
+    // get location ids
+    foreach ($account->field_location_ref_user['und'] as $delta => $tid) {
+      $tids[] = $tid['tid'];
+    }
+    // get locations for this user
+    $locations = reservation_utilities_get_locations($tids);
+  }
+  else {
+   // get all locations
+   $locations = reservation_utilities_get_locations();
+  }
+  
+  if (isset($parameters['location'])) { // location set
+    // get location id
+    $location_id = $parameters['location'];
+  }
+  else {
+    // get default location
+    foreach ($locations as $key => $value) {
+      $location_id = $key;
+      break;
+    }
+  }
+  
+  $stores = array(0 => 'Kaikki');
+  
+  // get stores for the selected location
+  $stores += reservation_utilities_get_stores_by_locations(array($location_id));
+  
+  if (isset($parameters['store'])) { // store set
+    // get store id
+    $store_id = $parameters['store'];
+  }
+  
+  // store selection
+  $form['store'] = array(
+    '#type' => 'select',
+    '#title' => 'Valitse kauppa',
+    '#options' => $stores,
+    '#default_value' => isset($store_id) ? $store_id : reset($stores),
+    '#attributes' => array(
+      'onChange' => 'this.form.submit();'
+    ),
+  );
+  
+  // form submit
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => 'Valitse kauppa',
+    '#attributes' => array(
+      'class' => array('js-hide'),
+    ),
+  );
+  
+  return $form;
+}
+
+
+/**
+ * Form callback - booking calendar select employee form
+ */
+function reservation_booking_views_calendar_employee_form($form, &$form_state) { 
+  global $user;
+  
+  // get query parameters
+  $parameters = drupal_get_query_parameters();
+  
+  // load user account
+  $account = user_load($user->uid);
+  
+  if (isset($account->field_location_ref_user) && !empty($account->field_location_ref_user)) {
+    $tids = array();
+    // get location ids
+    foreach ($account->field_location_ref_user['und'] as $delta => $tid) {
+      $tids[] = $tid['tid'];
+    }
+    // get locations for this user
+    $locations = reservation_utilities_get_locations($tids);
+  }
+  else {
+   // get all locations
+   $locations = reservation_utilities_get_locations();
+  }
+  
+  if (isset($parameters['location'])) { // location set
+    // get location id
+    $location_id = $parameters['location'];
+  }
+  else {
+    // get default location
+    foreach ($locations as $key => $value) {
+      $location_id = $key;
+      break;
+    }
+  }
+  
+  // get employee profiles for the selected location
+  $employees = reservation_utilities_get_employees(array($location_id));
+  // change the label for the first option
+  $employees[0] = 'Kaikki';
+  
+  if (isset($parameters['employee'])) { // employee set
+    // get employee user id
+    $employee_id = $parameters['employee'];
+  }
+  
+  // employee selection
+  $form['employee'] = array(
+    '#type' => 'select',
+    '#title' => 'Valitse työntekijä',
+    '#options' => $employees,
+    '#default_value' => isset($employee_id) ? $employee_id : reset($employees),
+    '#attributes' => array(
+      'onChange' => 'this.form.submit();'
+    ),
+  );
+  
+  // form submit
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => 'Valitse työntekijä',
+    '#attributes' => array(
+      'class' => array('js-hide'),
+    ),
+  );
+  
+  return $form;
+}
+
+
+/**
+ * Form callback - booking calendar select week number form
+ */
+function reservation_booking_views_calendar_week_number_form($form, &$form_state) { 
+  
+  // get query parameters
+  $parameters = drupal_get_query_parameters();
+  
+  if (!empty($parameters) && isset($parameters['date'])) {
+    // get date as a timestamp
+    $date_stamp = strtotime($parameters['date']);
+  }
+  else { 
+    // use today as a default date
+    $date_stamp = strtotime(date('d.m.Y', time()));
+  }
+  
+  // get week number
+  $week_number = intval(format_date($date_stamp, 'custom', 'W'));
+  // create an associative array for week numbers
+  $weeks_assoc = drupal_map_assoc(range(1, 52));
+  
+  // week number selection
+  $form['week_number'] = array(
+    '#type' => 'select',
+    '#title' => 'Valitse viikko',
+    '#options' => $weeks_assoc,
+    '#default_value' => $week_number,
+    '#attributes' => array(
+      'onChange' => 'this.form.submit();'
+    ),
+  );
+  
+  // form submit
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => 'Valitse viikko',
+    '#attributes' => array(
+      'class' => array('js-hide'),
+    ),
+  );
+  
+  return $form;
+}
+
+
+/**
+ * Form callback - booking calendar select year form
+ */
+function reservation_booking_views_calendar_year_form($form, &$form_state) { 
+  
+  // get query parameters
+  $parameters = drupal_get_query_parameters();
+  
+  if (!empty($parameters) && isset($parameters['date'])) {
+    // get date as a timestamp
+    $date_stamp = strtotime($parameters['date']);
+  }
+  else { 
+    // use today as a default date
+    $date_stamp = strtotime(date('d.m.Y', time()));
+  }
+  
+  // get year
+  $year = format_date($date_stamp, 'custom', 'o');
+  // years for selection (till 2 years from now)
+  $years = range(2019, format_date(time() + 63072000 , 'custom', 'Y'));
+  // create an associative array
+  $years_assoc = drupal_map_assoc($years);
+  
+  // year selection
+  $form['year'] = array(
+    '#type' => 'select',
+    '#title' => 'Valitse vuosi',
+    '#options' => $years_assoc,
+    '#default_value' => $year,
+    '#attributes' => array(
+      'onChange' => 'this.form.submit();'
+    ),
+  );
+  
+  // form submit
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => 'Valitse vuosi',
+    '#attributes' => array(
+      'class' => array('js-hide'),
+    ),
+  );
+  
+  return $form;
+}
+
+
+/**
+ * Form callback - booking edit form
+ */
+function reservation_booking_views_edit_form($form, &$form_state) {  
+  // form submit
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Save'),
+    '#weight' => 10,
+  );
+  
+  // add form submit function for all form variations
+  $form['#submit'][] = 'reservation_booking_views_edit_form_submit';
+  
+  return $form;
+}
+
+
+/**
+ * Form callback - booking remove form
+ */
+function reservation_booking_views_remove_form($form, &$form_state) {  
+  // form submit
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Delete'),
+    '#weight' => 10,
+  );
+  
+  // add form submit function for all form variations
+  $form['#submit'][] = 'reservation_booking_views_remove_form_submit';
+  
+  return $form;
+}
+
+
+/**
+ * FORM SUBMIT FUNCTIONS
+ */
+
+/**
+ * Form submit - booking calendar form: Previous button
+ */
+function reservation_booking_views_calendar_form_previous($form, &$form_state) {
+  // get query parameters
+  $parameters = drupal_get_query_parameters();
+  
+  if (!empty($parameters) && isset($parameters['date'])) {
+    // get date as a timestamp
+    $date_stamp = strtotime($parameters['date']);
+  }
+  else { 
+    // use today as a default date
+    $timestamp = strtotime(date('d.m.Y', time()));
+    // get time stamp for monday in this week
+    $date_stamp = reservation_utilities_monday_timestamp($timestamp);
+  }
+  
+  if ($date_stamp > 1546207200) { // 31.12.2018 is the earliest day to show
+    // go back with one week
+    $date_stamp -= 7*24*60*60-3600; // 7 days in seconds
+    
+    // update date parameter
+    $parameters['date'] = date('Y-m-d', $date_stamp);
+  }
+  
+  // redirect with query parameters
+  $form_state['redirect'] = array(
+    'tyovuorot',
+    array(
+      'query' => $parameters,
+    ),
+  );
+}
+
+
+/**
+ * Form submit - booking calendar form: Next button
+ */
+function reservation_booking_views_calendar_form_next($form, &$form_state) {
+  // get query parameters
+  $parameters = drupal_get_query_parameters();
+  
+  if (!empty($parameters) && isset($parameters['date'])) {
+    // get date as a timestamp
+    $date_stamp = strtotime($parameters['date']);
+  }
+  else { 
+    // use today as a default date
+    $timestamp = strtotime(date('d.m.Y', time()));
+    // get time stamp for monday in this week
+    $date_stamp = reservation_utilities_monday_timestamp($timestamp);
+  }
+  
+  $week_in_seconds = 7*24*60*60; // 7 days in seconds
+  
+  if (reservation_utilities_is_employee()) { // an employee
+    if ($date_stamp + $week_in_seconds <= time() + 2*7*24*60*60) {
+      // show calendar at most two weeks ahead for employees
+      // go forward with one week
+      $date_stamp += $week_in_seconds;
+    }
+  }
+  else {
+    // go forward with one week
+    $date_stamp += $week_in_seconds;
+  }
+  
+  // update date parameter
+  $parameters['date'] = date('Y-m-d', $date_stamp);
+  
+  // redirect with query parameters
+  $form_state['redirect'] = array(
+    'tyovuorot',
+    array(
+      'query' => $parameters,
+    ),
+  );
+}
+
+
+/**
+ * Form submit - booking calendar form: Select location
+ */
+function reservation_booking_views_calendar_location_form_submit($form, &$form_state) {
+  // get query parameters
+  $parameters = drupal_get_query_parameters();
+  
+  // get location tid
+  $location_tid = $form_state['values']['location'];
+  // update location parameter
+  $parameters['location'] = $location_tid;
+  // reset store
+  unset($parameters['store']);
+  // reset employee
+  unset($parameters['employee']);
+  
+  // redirect with query parameters
+  $form_state['redirect'] = array(
+    'tyovuorot',
+    array(
+      'query' => $parameters,
+    ),
+  );
+}
+
+
+/**
+ * Form submit - booking calendar form: Select store
+ */
+function reservation_booking_views_calendar_store_form_submit($form, &$form_state) {
+  // get query parameters
+  $parameters = drupal_get_query_parameters();
+  
+  // get store tid
+  $store_tid = $form_state['values']['store'];
+  
+  // update store parameter
+  $parameters['store'] = $store_tid;
+  
+  // redirect with query parameters
+  $form_state['redirect'] = array(
+    'tyovuorot',
+    array(
+      'query' => $parameters,
+    ),
+  );
+  
+}
+
+
+/**
+ * Form submit - booking calendar form: Select employee
+ */
+function reservation_booking_views_calendar_employee_form_submit($form, &$form_state) {
+  // get query parameters
+  $parameters = drupal_get_query_parameters();
+  
+  // get employee user id
+  $uid = $form_state['values']['employee'];
+  
+  // update employee parameter
+  $parameters['employee'] = $uid;
+  
+  // redirect with query parameters
+  $form_state['redirect'] = array(
+    'tyovuorot',
+    array(
+      'query' => $parameters,
+    ),
+  );
+  
+}
+
+
+/**
+ * Form submit - booking calendar form: Select week number
+ */
+function reservation_booking_views_calendar_week_number_form_submit($form, &$form_state) {
+  // get query parameters
+  $parameters = drupal_get_query_parameters();
+  
+  if (!empty($parameters) && isset($parameters['date'])) {
+    // get date as a timestamp
+    $date_stamp = strtotime($parameters['date']);
+  }
+  else { 
+    // use today as a default date
+    $timestamp = strtotime(date('d.m.Y', time()));
+    // get time stamp for monday in this week
+    $date_stamp = reservation_utilities_monday_timestamp($timestamp);
+  }
+  
+  // get year
+  $year = format_date($date_stamp, 'custom', 'Y');
+  
+  // get selected week number
+  $week = $form_state['values']['week_number'];
+  
+  // create a new DateTime object
+  $date = new DateTime();
+  $date->setISODate($year, $week);
+  
+  // update date parameter
+  $parameters['date'] = $date->format('Y-m-d');
+  
+  // redirect with query parameters
+  $form_state['redirect'] = array(
+    'tyovuorot',
+    array(
+      'query' => $parameters,
+    ),
+  );
+  
+}
+
+
+/**
+ * Form submit - booking calendar form: Select year
+ */
+function reservation_booking_views_calendar_year_form_submit($form, &$form_state) {
+  // get query parameters
+  $parameters = drupal_get_query_parameters();
+  
+  if (!empty($parameters) && isset($parameters['date'])) {
+    // get date as a timestamp
+    $date_stamp = strtotime($parameters['date']);
+  }
+  else { 
+    // use today as a default date
+    $timestamp = strtotime(date('d.m.Y', time()));
+    // get time stamp for monday in this week
+    $date_stamp = reservation_utilities_monday_timestamp($timestamp);
+  }
+  
+  // get week number
+  $week = format_date($date_stamp, 'custom', 'W');
+  
+  // get selected year
+  $year = $form_state['values']['year'];
+  
+  // create a new DateTime object
+  $date = new DateTime();
+  $date->setISODate($year, $week);
+  
+  // update date parameter
+  $parameters['date'] = $date->format('Y-m-d');
+  
+  // redirect with query parameters
+  $form_state['redirect'] = array(
+    'tyovuorot',
+    array(
+      'query' => $parameters,
+    ),
+  );
+  
+}
+
+
+/**
+ * Form submit - booking edit form
+ */
+function reservation_booking_views_edit_form_submit($form, &$form_state) {
+  
+  // get submitted values
+  $date = $form_state['values']['date'];
+  $start = $form_state['values']['start_time'];
+  $end = $form_state['values']['end_time'];
+  $section = $form_state['values']['section'];
+  
+  if (reservation_utilities_is_admin()) { // an admin
+    $employee = $form_state['values']['employee'];
+    $confirm = $form_state['values']['confirm'];
+  }
+  
+  $booking_id = $form_state['values']['booking_id'];
+  
+  // date as timestamp
+  $date_timestamp = strtotime($date);
+  // start time as string
+  $start_string = $date . ' ' . $start;
+  // start time as timestamp
+  $start_timestamp = strtotime($start_string);
+  // end time as string
+  $end_string = $date . ' ' . $end;
+  // end time as timestamp
+  $end_timestamp = strtotime($end_string);
+  
+  // load booking
+  $entity_type = 'varaus';
+  $booking = entity_load($entity_type, array($booking_id));
+  $booking_wrapper = entity_metadata_wrapper($entity_type, reset($booking));
+  
+  // set field values
+  $booking_wrapper->field_slot_date->set($date_timestamp);
+  $booking_wrapper->field_slot_start->set($start_timestamp);
+  $booking_wrapper->field_slot_end->set($end_timestamp);
+  $booking_wrapper->field_section_ref->set($section);
+  
+  if (isset($employee)) { // an admin
+    if ($employee != 0) { // an employee selected
+      // set employee profile reference
+      $booking_wrapper->field_employee_ref->set($employee);
+    }
+    else { 
+      // clear employee
+      $booking_wrapper->field_employee_ref->set(NULL);
+    }
+  }
+  
+  if (isset($confirm)) { // an admin
+    if ($confirm == 1) { // booking confirmed
+      $booking_wrapper->field_slot_state->set(2);
+    }
+    else { // set state as 'Ordered'
+      $booking_wrapper->field_slot_state->set(1);
+      // clear employee
+      $booking_wrapper->field_employee_ref->set(NULL);
+    }
+  }
+  
+  // save the booking
+  $booking_wrapper->save();
+  
+  // get query parameters
+  $parameters = drupal_get_query_parameters();
+  
+  // update date parameter
+  $parameters['date'] = date('Y-m-d', $date_timestamp);
+  
+  // redirect with query parameters
+  $form_state['redirect'] = array(
+    'tyovuorot',
+    array(
+      'query' => $parameters,
+    ),
+  );
+  
+  $date = $booking_wrapper->field_slot_date->value();
+  $start = $booking_wrapper->field_slot_start->value();
+  $end = $booking_wrapper->field_slot_end->value();
+  $store = $booking_wrapper->field_store->label();
+  $section = $booking_wrapper->field_section_ref->label();
+  
+  if (isset($employee) && $employee != 0) {  // an employee selected
+    // prepare a message for the employee
+    $message = '<p style="font-size: 14px;"><span style="font-weight: bold;">'
+        . 'Alkaa:</span> ' . format_date($start, 'custom', 'd.m.Y H:i') . '</p>'
+        . '<p style="font-size: 14px;"><span style="font-weight: bold;">'
+        . 'Päättyy:</span> ' . format_date($end, 'custom', 'd.m.Y H:i') . '</p>'
+        . '<p style="font-size: 14px;"><span style="font-weight: bold;">'
+        . 'Kauppa:</span> ' . $store . '</p><p style="font-size: 14px;"><span '
+        . 'style="font-weight: bold;">Osasto:</span> ' . $section . '</p>';
+    
+    $params = array(
+      'subject' => 'Sinulle on lisätty työvuoro ' . format_date($date, 'custom', 
+          'd.m.Y'),
+      'body' => $message,
+    );
+    
+    // send message to the employee
+    $to = reservation_utilities_get_email_by_profile_id($employee);
+    
+    // send email
+    /* drupal_mail('reservation_booking_views', 'booking_confirm_employee', $to, 
+        language_default(), $params, 'info@vuorokori.fi'); */
+  }
+  
+  // prepare a message for the merchant
+  $message = '<p style="font-size: 14px;"><span style="font-weight: bold;">Alkaa:'
+      . '</span> ' . format_date($start, 'custom', 'd.m.Y H:i') . '</p><p style='
+      . '"font-size: 14px;"><span style="font-weight: bold;">Päättyy:</span> ' 
+      . format_date($end, 'custom', 'd.m.Y H:i') . '</p><p style="font-size: '
+      . '14px;"><span style="font-weight: bold;">Kauppa:</span> ' . $store 
+      . '</p><p style="font-size: 14px;"><span style="font-weight: bold;">Osasto:'
+      . '</span> ' . $section . '</p>';
+  
+  if (isset($employee) && $employee != 0) {  // an employee selected
+    // load user profile
+    $profile = profile2_load($employee);
+    
+    // get name for the user
+    $name = $profile->field_nimi['und'][0]['value'];
+    
+    $message .= '<p style="font-size: 14px;"><span style="font-weight: bold;">'
+        . 'Työntekijä:</span> ' . $name . '</p>';
+  }
+    
+  $params = array(
+    'subject' => 'Työvuoro vahvistettu ' . format_date($date, 'custom', 'd.m.Y'),
+    'body' => $message,
+  );
+    
+  // send message to the merchant who made this booking
+  $uid = $booking_wrapper->uid->getIdentifier();
+  $to = reservation_utilities_get_email_by_user_id($uid);
+  
+  // send email
+  /* drupal_mail('reservation_booking_views', 'booking_confirm_merchant', $to, 
+      language_default(), $params, 'info@vuorokori.fi'); */
+  
+  drupal_set_message(t('Booking %bid edited', array('%bid' => $booking_id)));
+}
+
+
+/**
+ * Form submit - booking remove form
+ */
+function reservation_booking_views_remove_form_submit($form, &$form_state) {
+  // get booking id
+  $booking_id = $form_state['values']['booking_id'];
+  
+  // load booking
+  $entity_type = 'varaus';
+  $booking = entity_load($entity_type, array($booking_id));
+  $booking_wrapper = entity_metadata_wrapper($entity_type, reset($booking));
+  
+  // set booking state as 'Cancelled'
+  $booking_wrapper->field_slot_state->set(3);
+  
+  // save the booking
+  $booking_wrapper->save();
+  
+  drupal_set_message(t('Booking %bid removed', array('%bid' => $booking_id)));
+}
+
+
+/**
+ * HELPER FUNCTIONS FOR FORM CONSTRUCTION
+ */
+
+/**
+ * Creates booking calendar form markup
+ * 
+ * @return string - markup for the calendar
+ */
+function reservation_booking_views_create_calendar() {
+  global $user;
+  $uid = $user->uid;
+  $limit = 0;
+  $pid = 0;
+  
+  $good_fridays = array();
+  $easter_days = array();
+  $second_easter_days = array();
+  $ascension_days = array();
+  $pentecost_days = array();
+  $header_data = array();
+  $filters = array();
+  
+  // get query parameters
+  $parameters = drupal_get_query_parameters();
+  
+  if (!empty($parameters) && isset($parameters['date'])) {
+    // get date as a timestamp
+    $date_stamp = strtotime($parameters['date']);
+  }
+  else { // use today as a default date
+    $date_stamp = strtotime(date('d.m.Y', time()));
+  }
+  
+  // get timestamp for monday in the week of the date
+  $start = reservation_utilities_monday_timestamp($date_stamp);
+  // get week number for the date
+  $week_number = format_date($date_stamp, 'custom', 'W');
+  
+  if (in_array('työntekijä', $user->roles)) { // an employee
+    // get employee profile id
+    $pid = reservation_utilities_get_profile_id_by_uid($uid);
+  }
+  
+  if (in_array('kauppias', $user->roles)) { // a merchant
+    // get the limit (in seconds) for editing items
+    $limit = variable_get('limit', 48) * 3600;
+  }
+   
+  if (in_array('ylläpitäjä', $user->roles) || in_array('administrator', 
+      $user->roles)) { // an admin
+
+    $uid = 1; // uid for admin
+    
+    // load user account
+    $account = user_load($user->uid);
+  
+    if (isset($account->field_location_ref_user) && !empty($account->field_location_ref_user)) {
+      $tids = array();
+      // get location ids
+      foreach ($account->field_location_ref_user['und'] as $delta => $tid) {
+        $tids[] = $tid['tid'];
+      }
+      // get locations for this user
+      $locations = reservation_utilities_get_locations($tids);
+    }
+    else {
+     // get all locations
+     $locations = reservation_utilities_get_locations();
+    }
+    
+    // get ids for locations
+    $location_ids = array_keys($locations);
+    // get the id for the default location
+    $location_id = reset($location_ids);
+    
+    // set the location filter
+    $filters['location'] = $location_id;
+    
+    if (!empty($parameters)) { // parameters set
+      if (isset($parameters['location'])) { // location set
+        // get location id
+        $location_id = $parameters['location'];
+        // set filter
+        $filters['location'] = $location_id;
+      }
+      if (isset($parameters['store'])) { // store set
+        // get store id
+        $store_id = $parameters['store'];
+        // set filter
+        $filters['store'] = $store_id;
+      }
+      if (isset($parameters['employee'])) { // employee set
+        // get employee user id
+        $employee_uid = $parameters['employee'];
+        // set filter
+        $filters['employee'] = $employee_uid;
+      }
+      if (isset($parameters['status'])) { // status set
+        // get status
+        $status = $parameters['status'];
+        // set filter
+        $filters['status'] = $status;
+      }
+    }
+  }
+  
+  // get saved easter days
+  $easter_days = reservation_set_easter_get_saved_data();
+  
+  // store good fridays (-2 days)
+  foreach ($easter_days as $key => $value) {
+    $good_fridays[$key] = $value - 2 * 86400;
+  }
+  
+  // store second easter days (+1 day)
+  foreach ($easter_days as $key => $value) {
+    $second_easter_days[$key] = $value + 86400;
+  }
+  
+  // store ascension days (+39 days)
+  foreach ($easter_days as $key => $value) {
+    $ascension_days[$key] = $value + 39 * 86400;
+  }
+  
+  // store pentecost days (+49 days)
+  foreach ($easter_days as $key => $value) {
+    $pentecost_days[$key] = $value + 49 * 86400;
+  }
+  
+  // create the days of a week data array
+  for ($i=0; $i<7; $i++) {
+    $header_data[$i]['markup'] = format_date($start + ($i * 86400), 'custom', 
+        'l');
+    $header_data[$i]['markup'] .= '<br />' . format_date($start + ($i * 86400), 
+      'custom', 'd.m.Y');
+    
+    // check if a special day
+    switch (format_date($start + ($i * 86400), 'custom', 'd.m.')) {
+      case '01.01.': // New Year
+        $header_data[$i]['markup'] .= '<br />Uudenvuoden päivä';
+        $header_data[$i]['special'] = 1; // special day flag
+        break;
+      case '06.01.': // Epiphany
+        $header_data[$i]['markup'] .= '<br />Loppiainen';
+        $header_data[$i]['special'] = 1; // special day flag
+        break;
+      case '01.05.': // first of May
+        $header_data[$i]['markup'] .= '<br />Vappu';
+        $header_data[$i]['special'] = 1; // special day flag
+        break;
+      case '06.12.': // Independce Day
+        $header_data[$i]['markup'] .= '<br />Itsenäisyyspäivä';
+        $header_data[$i]['special'] = 1; // special day flag
+        break;
+      case '25.12.': // Christmas day
+        $header_data[$i]['markup'] .= '<br />Joulupäivä';
+        $header_data[$i]['special'] = 1; // special day flag
+        break;
+      case '26.12.': // Boxing day
+        $header_data[$i]['markup'] .= '<br />Tapaninpäivä';
+        $header_data[$i]['special'] = 1; // special day flag
+        break;
+      default:
+        break;
+    }
+    
+    // test Midsummer day
+    if (format_date($start + ($i * 86400), 'custom', 'm') == 6) { // June
+      $day = intval(format_date($start + ($i * 86400), 'custom', 'd'));
+      if (20 <= $day && $day <= 26 && format_date($start + ($i * 86400), 
+          'custom', 'w') == 6) { // Midsummer day
+        $header_data[$i]['markup'] .= '<br />Juhannuspäivä';
+        $header_data[$i]['special'] = 1; // special day flag
+      }
+    }
+    // test All Saints' Day
+    else if (format_date($start + ($i * 86400), 'custom', 'm') == 10 || 
+        format_date($start + ($i * 86400), 'custom', 'm') == 11) { // October or November
+      
+      $month = intval(format_date($start + ($i * 86400), 'custom', 'm'));
+      $day = intval(format_date($start + ($i * 86400), 'custom', 'd'));
+      
+      if ($month === 10 && $day === 31 && format_date($start + ($i * 86400), 
+          'custom', 'w') == 6) { // Saturday 31.10. All Saints' Day
+        $header_data[$i]['markup'] .= '<br />Pyhäinpäivä';
+        $header_data[$i]['special'] = 1; // special day flag
+      }
+      else if ($month === 11 && $day <= 6 && format_date($start + ($i * 86400), 
+          'custom', 'w') == 6) { // Saturday 1.-6.11. All Saints' Day
+        $header_data[$i]['markup'] .= '<br />Pyhäinpäivä';
+        $header_data[$i]['special'] = 1; // special day flag
+      }
+    }
+    // test Good Friday
+    else if (in_array($start + ($i * 86400), $good_fridays)) {
+      $header_data[$i]['markup'] .= '<br />Pitkäperjantai';
+      $header_data[$i]['special'] = 1; // special day flag
+    }
+    // test Easter day
+    else if (in_array($start + ($i * 86400), $easter_days)) {
+      $header_data[$i]['markup'] .= '<br />Pääsiäispäivä';
+      $header_data[$i]['special'] = 1; // special day flag
+    }
+    // test second Easter day
+    else if (in_array($start + ($i * 86400), $second_easter_days)) {
+      $header_data[$i]['markup'] .= '<br />2. Pääsiäispäivä';
+      $header_data[$i]['special'] = 1; // special day flag
+    }
+    // test Ascension day
+    else if (in_array($start + ($i * 86400), $ascension_days)) {
+      $header_data[$i]['markup'] .= '<br />Helatorstai';
+      $header_data[$i]['special'] = 1; // special day flag
+    }
+    // test Pentecost day
+    if (in_array($start + ($i * 86400), $pentecost_days)) {
+      $header_data[$i]['markup'] .= '<br />Helluntaipäivä';
+      $header_data[$i]['special'] = 1; // special day flag
+    }
+  }
+  
+  // create markup for the calendar header
+  $markup = '<div id="calendar-arrow-up"><img src="' . drupal_get_path('theme', 
+      'vuorokori') . '/images/arrow-up.png" /></div><div id="booking-calendar">'
+      . '<div id="week-number">Viikko ' . $week_number . '</div>';
+  
+  // get bookings
+  $booking_data = reservation_utilities_get_booking_data($start, $uid, $pid, 
+      $filters);
+  
+  // create markup for bookings
+  for ($i=0; $i<7; $i++) {
+    if (isset($header_data[$i]['special'])) { // a special day
+      $markup .= '<div class="day special"><div class="day-header">' 
+          . $header_data[$i]['markup'] . '</div>';
+    }
+    else {
+      $markup .= '<div class="day"><div class="day-header">' 
+          . $header_data[$i]['markup'] . '</div>';
+    }
+    
+    if (!empty($booking_data[$i])) { // booking(s) for this day
+      foreach ($booking_data[$i] as $delta => $item) {
+        $day_content_class = 'day-content';
+        if ($booking_data[$i][$delta]['state'] == 2) { // a confirmed booking
+          $day_content_class = 'day-content confirmed';
+        }
+        if (!empty($booking_data[$i][$delta]['type'])) { // store type set
+          $day_content_class .= ' ' . $booking_data[$i][$delta]['type'];
+        }
+        $markup .= '<div class="' . $day_content_class . '"><div class="time">'
+            . '<span class="start">'. $booking_data[$i][$delta]['start'] . '&nbsp;'
+            . '-&nbsp;</span><span class="end">' . $booking_data[$i][$delta]['end'] 
+            . '</span></div><div class="store">' . $booking_data[$i][$delta]['store'] 
+            . '</div><div class="section">' . $booking_data[$i][$delta]['section'] 
+            . '</div><div class="employee">' . $booking_data[$i][$delta]['employee'] 
+            . '</div>';
+        
+        // an admin or merchant having rights to modify the booking
+        if ($uid == 1 || reservation_utilities_is_merchant() && 
+            $booking_data[$i][$delta]['start_timestamp'] - time() > $limit) { 
+          // get booking edit form; pass location and booking id as parameters
+          if (isset($filters['location'])) { // a location set
+            $location_id = $filters['location'];
+          }
+          
+          $booking_id = $booking_data[$i][$delta]['id'];
+          
+          $edit_form = drupal_get_form('reservation_booking_views_edit_form_'
+              . $booking_id, $location_id, $booking_id);
+          
+          $remove_form = drupal_get_form('reservation_booking_views_remove_form_'
+              . $booking_id, $booking_id);
+          
+          $markup .= '<div class="edit-button" id="edit-button-' . $booking_id 
+              . '">Muokkaa</div><div class="edit-form" id="edit-form-' 
+              . $booking_id . '">' . drupal_render($edit_form) . '</div><div '
+              . 'class="remove-form" id="remove-form-' . $booking_id . '">' 
+              . drupal_render($remove_form) . '</div></div>';
+        }
+        else {
+          $markup .= '</div>';
+        }
+      }
+    }
+    $markup .= '</div>';
+  }
+  $markup .= '</div>';
+  
+  return $markup;
+}

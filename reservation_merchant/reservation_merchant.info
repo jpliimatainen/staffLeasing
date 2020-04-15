@@ -1,0 +1,8 @@
+name = Reservation Merchant
+description = Provides functions for ordering bookings by merchants
+package = Reservation System
+core = 7.x
+
+dependencies[] = reservation_utilities
+
+stylesheets[all][] = css/reservationMerchant.css

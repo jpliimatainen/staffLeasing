@@ -1,0 +1,773 @@
+<?php
+
+/**
+ * @file reservation_employee_user.module
+ * Provides functions for user management of employees
+ */
+
+/**
+ * Implements hook_permission
+ */
+function reservation_employee_user_permission() {
+  return array(
+    'administer reservation employee user' => array(
+      'title' => t('Admister reservation employee user'),
+      'descripiton' => t('Execute administrative tasks for reservation employee '
+          . 'user'),
+    ),
+  );
+}
+
+
+/**
+ * Implements hook_file_download_access()
+ */
+function reservation_employee_user_file_download_access($file_item, $entity_type, $entity) {
+  global $user;
+  
+  if ($entity_type === 'employee_file' && ($user->uid === $entity->uid || 
+      in_array('ylläpitäjä', $user->roles))) {
+    // printed booking for the current user OR admin; grant access
+    return TRUE;
+  }
+  
+  return FALSE; // no access to this file
+}
+
+
+/**
+ * Implements hook_menu()
+ */
+function reservation_employee_user_menu() {
+  $items = array();
+  
+  $items['user/register/employee'] = array(
+    'title' => 'Käyttäjätilin rekisteröinti - Työntekijä',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('reservation_employee_user_register_form'),
+    'access arguments' => array('administer reservation employee user'),
+    'type' => MENU_NORMAL_ITEM,
+  );
+  
+  $items['employee/%'] = array(
+    'title' => 'Omat tiedot',
+    'page callback' => 'reservation_employee_user_account_page',
+    'page arguments' => array(1),
+    'access callback' => 'reservation_utilities_is_employee',
+    'access arguments' => array(1),
+    'type' => MENU_NORMAL_ITEM,
+  );
+  
+  $items['employee/%/view'] = array(
+    'title' => 'Omat tiedot',
+    'page callback' => 'reservation_employee_user_account_page',
+    'page arguments' => array(1),
+    'access callback' => 'reservation_utilities_is_employee',
+    'access arguments' => array(1),
+    'type' => MENU_DEFAULT_LOCAL_TASK,
+    'weight' => 0,
+    
+  );
+  
+  $items['employee/%/edit-employee'] = array(
+    'title' => 'Muokkaa henkilötietoja',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('reservation_employee_user_employee_edit_form', 1),
+    'access callback' => 'reservation_utilities_is_employee',
+    'access arguments' => array(1),
+    'type' => MENU_LOCAL_TASK,
+    'weight' => 1,
+  );
+  
+  $items['employee/%/files'] = array(
+    'title' => 'Tiedostot',
+    'page callback' => 'reservation_employee_user_files_page',
+    'page arguments' => array(1),
+    'access callback' => 'reservation_utilities_is_employee',
+    'access arguments' => array(1),
+    'type' => MENU_LOCAL_TASK,
+    'weight' => 2,
+  );
+  
+  return $items;
+}
+
+
+/**
+ * Implements hook_page_alter()
+ */
+function reservation_employee_user_page_alter(&$page) {
+  if (drupal_is_front_page() && user_is_logged_in()) { // the front page and a logged in user
+    global $user;
+    
+    if (reservation_utilities_is_employee()) { // an employee
+      // redirect to the calendar page
+      drupal_goto('tyovuorot');
+    }
+  }
+}
+
+
+/**
+ * BLOCKS CONFIGURATION
+ */
+
+/**
+ * Implements hook_block_info()
+ */
+function reservation_employee_user_block_info() {
+  $blocks['register_employee'] = array(
+    'info' => t('Link to register employee page'),
+    'visibility' => BLOCK_VISIBILITY_LISTED,
+    'pages' => 'dashboard',
+  );
+  
+  return $blocks;
+}
+
+
+/**
+ * Implements hook_block_view()
+ */
+function reservation_employee_user_block_view($delta = '') {
+  $block = array();
+  
+  switch ($delta) {
+    case 'register_employee':
+      $block['subject'] = '';
+      $block['content'] = '<div><a href="/user/register/employee">Lisää '
+          . 'työntekijä</a></div>';
+      break;
+    
+    default:
+      break;
+  }
+
+  return $block;
+}
+
+
+/**
+ * PAGE CALLBACKS
+ */
+
+/**
+ * Page callback - user profile page
+ */
+function reservation_employee_user_account_page($arg1) {
+  // load user profile
+  $profile_array = profile2_load_by_user($arg1);
+  $profile = reset($profile_array);
+  $entity_type = 'profile2';
+  $profile_wrapper = entity_metadata_wrapper($entity_type, $profile);
+  
+  // get employee name
+  $name = $profile_wrapper->field_nimi->value();
+  // get address
+  $address = $profile_wrapper->field_osoite->value();
+  // get phone
+  $phone = $profile_wrapper->field_puhelinnumero->value();
+  // get selected locations
+  $selected_locations = array();
+  foreach ($profile_wrapper->field_location_ref_user->value() as $delta => $item) {
+    $selected_locations[] = $item->name;
+  }
+  // get user account
+  $account = user_load($arg1);
+  // get email
+  $email = $account->mail;
+  
+  // create markup
+  $markup = '<div id="my-account-page"><div id="employee-name">' . $name 
+      . '</div><div id="employee-address">' . $address . '</div><div id="'
+      . 'employee-email">' . $email . '</div><div id="employee-phone">' . $phone 
+      . '</div><div id="employee-locations"><div class="caption">Sijainnit/'
+      . 'kaupungit:</div>';
+  
+  foreach ($selected_locations as $key => $value) {
+    $markup .= '<div class="location">- ' . $value . '</div>';
+  }
+  
+  $markup .= '</div>';
+  
+  return $markup;
+}
+
+
+/**
+ * Page callback - user files page
+ */
+function reservation_employee_user_files_page($arg1) {
+  $markup = '';
+  
+  // load user profile
+  $profile_array = profile2_load_by_user($arg1);
+  $profile = reset($profile_array);
+  $entity_type = 'profile2';
+  $profile_wrapper = entity_metadata_wrapper($entity_type, $profile);
+  
+  // get download document form
+  $form = drupal_get_form('reservation_employee_user_download_document_form');
+  // render the form
+  $markup .= drupal_render($form);
+  
+  // create markup for the saved files
+  $markup .= '<div class="saved-files"><div class="caption">Tallennetut '
+      . 'tiedostot</div>';
+  // get files form
+  $files_form = drupal_get_form('reservation_employee_user_files_form');
+  // render the form
+  $markup .= drupal_render($files_form);
+  $markup .= '</div>';
+
+  return $markup;
+}
+
+/**
+ * FORM CALLBACKS
+ */
+
+/**
+ * Form callback - user register form for employees
+ */
+function reservation_employee_user_register_form($form, $form_state) { 
+  global $user;
+  
+  // load user account
+  $account = user_load($user->uid);
+  
+  if (isset($account->field_location_ref_user) && !empty($account->field_location_ref_user)) {
+    $tids = array();
+    // get location ids
+    foreach ($account->field_location_ref_user['und'] as $delta => $tid) {
+      $tids[] = $tid['tid'];
+    }
+    // get locations for this user
+    $locations = reservation_utilities_get_locations($tids);
+  }
+  else {
+   // get all locations
+   $locations = reservation_utilities_get_locations();
+  }
+  
+  $form['email'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Email'),
+    '#required' => TRUE,
+  );
+  
+  $form['pass'] = array(
+    '#type' => 'password_confirm',
+    '#title' => t('Password'),
+    '#size' => 25,
+    '#required' => TRUE,
+  );
+  
+  $form['name'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Name'),
+    '#required' => TRUE,
+  );
+  
+  $form['phone'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Phone'),
+    '#description' => t('Enter phone number without dashes and spcaces. E.g <em>'
+        . '040123456</em>'),
+    '#required' => TRUE,
+  );
+
+  // address of the employee
+  $form['address'] = array(
+    '#type' => 'textarea',
+    '#title' => t('Address'),
+    '#rows' => 3,
+    '#resizable' => FALSE,
+    '#required' => TRUE,
+  );
+  
+  // location selection
+  $form['location'] = array(
+    '#type' => 'checkboxes',
+    '#title' => t('Town/Region'),
+    '#options' => $locations,
+    '#required' => TRUE,
+  );
+  
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Save'),
+  );
+  
+  return $form;
+}
+
+
+/**
+ * Form callback - employee edit form
+ */
+function reservation_employee_user_employee_edit_form($form, &$form_state, $uid = 0) {
+  if ($uid == 0) { // not a valid user
+    return array();
+  }
+  
+  // load user account
+  $account = user_load($uid);
+  
+  // load user profile
+  $profile_array = profile2_load_by_user($account);
+  $profile = reset($profile_array);
+  $entity_type = 'profile2';
+  $profile_wrapper = entity_metadata_wrapper($entity_type, $profile);
+  
+  // get locations
+  $locations = reservation_utilities_get_locations();
+  
+  $form['email'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Email'),
+    '#default_value' => $account->mail,
+    '#required' => TRUE,
+  );
+  
+  $form['pass'] = array(
+    '#type' => 'password_confirm',
+    '#title' => t('Password'),
+    '#description' => t('Enter a new password into the both fields if you want '
+        . 'to change it.'),
+    '#size' => 25,
+  );
+  
+  $form['name'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Name'),
+    '#default_value' => $profile_wrapper->field_nimi->value(),
+    '#required' => TRUE,
+  );
+  
+  $form['phone'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Phone'),
+    '#description' => t('Enter phone number without dashes and spcaces. E.g <em>'
+        . '040123456</em>'),
+    '#default_value' => $profile_wrapper->field_puhelinnumero->value(),
+    '#required' => TRUE,
+  );
+  
+  // address of the employee
+  $form['address'] = array(
+    '#type' => 'textarea',
+    '#title' => t('Address'),
+    '#rows' => 3,
+    '#resizable' => FALSE,
+    '#default_value' => $profile_wrapper->field_osoite->value(),
+    '#required' => TRUE,
+  );
+  
+  // get selected locations
+  $selected_loc = array();
+  foreach ($profile_wrapper->field_location_ref_user->value() as $delta => $item) {
+    $selected_loc[] = $item->tid;
+  }
+  
+  // location selection
+  $form['location'] = array(
+    '#type' => 'checkboxes',
+    '#title' => t('Town/Region'),
+    '#options' => $locations,
+    '#default_value' => $selected_loc,
+    '#required' => TRUE,
+  );
+  
+   $form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Save'),
+  );
+  
+  return $form;
+}
+
+
+/**
+ * Form callback - download document form
+ */
+function reservation_employee_user_download_document_form($form, &$form_state) {
+  global $user;
+  
+  $form['description'] = array(
+    '#markup' => '<div class="form-description">Lataa tiedosto</div>',
+  );
+  
+  $form['file'] = array(
+    '#type' => 'managed_file',
+    '#title' => 'Valitse tiedosto',
+    '#description' => 'Sallittu tiedostomuoto: <strong>pdf</strong><br />Suurin'
+        . ' tiedostokoko: <strong>2 MB</strong>',
+    '#upload_validators' => array(
+      'file_validate_extensions' => array('pdf'),
+      'file_validate_size' => array(2*1024*1024), // max file size 2 MB
+    ),
+    '#upload_location' => 'private://employee_documents/' . $user->uid . '/' 
+        . format_date(REQUEST_TIME, 'custom', 'Y'),
+    '#required' => TRUE,
+  );
+  
+  // get document types
+  $types = reservation_utilities_get_document_types();
+  
+  // type of document
+  $form['type'] = array(
+    '#type' => 'select',
+    '#title' => 'Tiedoston tyyppi',
+    '#options' => $types,
+    '#default_value' => reset($types),
+    '#required' => TRUE,
+  );
+  
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Send file'),
+  );
+  
+  return $form;
+}
+
+
+/**
+ * Form callback - saved files form
+ */
+function reservation_employee_user_files_form($form, &$form_state) {
+  global $user;
+  $form = array();
+  
+  // get the entity ids of saved file for this employee
+  $entity_ids = reservation_utilities_get_file_entity_ids($user->uid);
+  
+  if (!empty($entity_ids)) {
+    // create form header
+    $form['header'] = array(
+      '#markup' => '<div class="header"><span class="file">Tiedosto</span><span '
+          . 'class="type">Tyyppi</span><span class="created">Lisätty</span></div>',
+    );
+    
+    // create form items
+    foreach ($entity_ids as $key => $fid) {
+      // create a container for a row
+      $form['file-' . $fid] = array(
+        '#type' => 'container',
+        '#attributes' => array(
+          'class' => array('file-row')
+        ),
+      );
+      
+      // create text content for the row
+      $form['file-' . $fid]['content'] = array(
+        '#markup' => reservation_employee_user_files_row($fid),
+      );
+      
+      // create a remove button
+      $form['file-' . $fid]['submit'] = array(
+        '#type' => 'submit',
+        '#value' => 'Poista',
+        '#name' => 'op-delete-' . $fid,
+        '#submit' => array('reservation_employee_user_saved_file_delete'),
+      );
+    }
+  }
+  
+  return $form;
+}
+
+
+/**
+ * FORM VALIDATION
+ */
+
+/**
+ * Form validation - user register form
+ */
+function reservation_employee_user_register_form_validate($form, &$form_state) {
+  if (!valid_email_address($form_state['values']['email'])) {
+    form_set_error('email', t('You must enter a valid email address'));
+  }
+  else if (user_load_by_mail($form_state['values']['email'])) { // email exists
+    form_set_error('email', t('Email address is already used. Try another one.'));
+  }
+  
+  if (!reservation_utilities_valid_phone($form_state['values']['phone'])) {
+    form_set_error('phone', t('Enter phone number without dashes and spcaces. '
+        . 'E.g <em>040123456</em>'));
+  }
+  else if (reservation_utilities_phone_exists($form_state['values']['phone'])) { 
+    form_set_error('phone', t('Phone number is already used. Try another one.'));
+  }
+}
+
+
+/**
+ * Form validation - employee edit form
+ */
+function reservation_employee_user_employee_edit_form_validate($form, &$form_state) {
+  global $user;
+  
+  // get form values
+  $email = $form_state['values']['email'];
+  $phone = $form_state['values']['phone'];
+  
+  if (!valid_email_address($email)) {
+    form_set_error('email', t('You must enter a valid email address'));
+  }
+  else if (user_load_by_mail($email) && $email !== $user->mail) { 
+    // email exists and belongs to another user
+    form_set_error('email', t('Email address is already used. Try another one.'));
+  }
+  
+  if (!reservation_utilities_valid_phone($phone)) {
+    form_set_error('phone', t('Enter phone number without dashes and spcaces. '
+        . 'E.g <em>040123456</em>'));
+  }
+  else if (reservation_utilities_phone_exists($phone) && 
+      !reservation_utilities_user_phone($phone, $user->uid)) { 
+    // phone exists and belongs to another user
+    form_set_error('phone', t('Phone number is already used. Try another one.'));
+  }
+}
+
+
+/**
+ * FORM SUBMIT
+ */
+/**
+ * Form submit - user register form
+ */
+function reservation_employee_user_register_form_submit($form, &$form_state) {
+  // get form values
+  $email = $form_state['values']['email'];
+  $passwd = $form_state['values']['pass'];
+  $name = $form_state['values']['name'];
+  $phone = $form_state['values']['phone'];
+  // get selected locations
+  $locations = array_filter($form_state['values']['location'], 'reservation_utilities_is_non_zero');
+  $address = $form_state['values']['address'];
+  
+  $edit = array(
+    // create username from the name of a user
+    'name' => strtolower(str_replace(array(' ', '-'), '_', $name)),
+    'pass' => $passwd,
+    'mail' => $email,
+    'init' => $email,
+    'roles' => array(
+      2 => 'authenticated user',
+      6 => 'työntekijä',
+    ),
+    'status' => 1, // set user status as active
+  );
+  
+  // create a new user
+  $account = user_save(drupal_anonymous_user(), $edit);
+  
+  $values = array(
+    'type' => 'profile_employee',
+    'uid' => $account->uid,
+  );
+  
+  // create a new profile
+  $profile = profile2_create($values);
+  // save the profile
+  profile2_save($profile);
+  
+  $entity_type = 'profile2';
+  $profile_wrapper = entity_metadata_wrapper($entity_type, $profile);
+  
+  // set field values
+  $profile_wrapper->field_nimi->set($name);
+  $profile_wrapper->field_puhelinnumero->set($phone);
+  $profile_wrapper->field_osoite->set($address);
+  if (!empty($locations)) {
+    // set location reference value
+    $profile_wrapper->field_location_ref_user->set($locations);
+  }
+  
+  // save the profile
+  $profile_wrapper->save();
+  
+  // notify employee about the new user account
+  _user_mail_notify('register_admin_created', $account);
+  
+  drupal_set_message(t('User account created for the email address %email.', 
+      array('%email' => $email)));
+}
+
+
+/**
+ * Form submit - employee edit form
+ */
+function reservation_employee_user_employee_edit_form_submit($form, &$form_state) {
+  global $user;
+  
+  // get submitted values
+  $email = $form_state['values']['email'];
+  $passwd = $form_state['values']['pass'];
+  $name = $form_state['values']['name'];
+  $phone = $form_state['values']['phone'];
+  $address = $form_state['values']['address'];
+  // get selected locations
+  $locations = array_filter($form_state['values']['location'], 
+      'reservation_utilities_is_non_zero');
+  
+  // load user account
+  $account = user_load($user->uid);
+  
+  // create edit array
+  $edit = array(
+    'mail' => $email,
+  );
+  
+  if (!empty($passwd)) {
+    $edit['pass'] = $passwd;
+  }
+  
+  // save account
+  $account = user_save($account, $edit);
+  
+  // load user profile
+  $profile_array = profile2_load_by_user($account);
+  $profile = reset($profile_array);
+  $entity_type = 'profile2';
+  $profile_wrapper = entity_metadata_wrapper($entity_type, $profile);
+  
+  // set field values
+  $profile_wrapper->field_nimi->set($name);
+  $profile_wrapper->field_puhelinnumero->set($phone);
+  $profile_wrapper->field_osoite->set($address);
+  if (!empty($locations)) {
+    // set location reference value
+    $profile_wrapper->field_location_ref_user->set($locations);
+  }
+  
+  // save the profile
+  $profile_wrapper->save();
+  
+  drupal_set_message(t('User data updated.'), 'status');
+}
+
+
+/**
+ * Form submit - download document form
+ */
+function reservation_employee_user_download_document_form_submit($form, &$form_state) {
+  global $user;
+  
+  // get file type tid
+  $type_tid = $form_state['values']['type'];
+  // get file type term
+  $type_term = taxonomy_term_load($type_tid);
+  // get file type name
+  $type_name = $type_term->name;
+  
+  // load file
+  $fid = $form_state['values']['file'];
+  $file = file_load($fid);
+  // change status to permanent
+  $file->status = FILE_STATUS_PERMANENT;
+  // save the file
+  $file = file_save($file);
+  
+  // create a new employee_file entity
+  $entity_type = 'employee_file';
+  $file_entity = entity_create($entity_type, array('type' => $entity_type));
+  $file_wrapper = entity_metadata_wrapper($entity_type, $file_entity);
+    
+  // set entity properties
+  $file_wrapper->uid = $user->uid;
+  $file_wrapper->created = time();
+  $file_wrapper->changed = time();
+  $file_wrapper->title = $type_name . '-' . $user->name . '-' . format_date(
+      REQUEST_TIME, 'custom', 'Y-m-d') . '.pdf';
+  
+  // set file field value
+  $file_wrapper->field_tiedosto->file->set($file);
+  // set file type value
+  $file_wrapper->field_tiedostotyyppi->set($type_tid);
+  
+  // save the entity
+  $file_wrapper->save();
+  
+  drupal_set_message(t('!type saved', array('!type' => $type_name)), 'status');
+}
+
+
+/**
+ * Form submit - delete saved file
+ */
+function reservation_employee_user_saved_file_delete($form, &$form_state) {
+  // get #name for the clicked button
+  $name = $form_state['clicked_button']['#name'];
+  // get entity id from the name (name = op-delete-[entity-id])
+  $entity_id = substr($name, 10);
+  
+  // load file entity
+  $entity_type = 'employee_file';
+  $file_entity_array = entity_load($entity_type, array($entity_id));
+  $file_entity = reset($file_entity_array);
+  $file_wrapper = entity_metadata_wrapper($entity_type, $file_entity);
+  
+  // get entity title
+  $title = $file_wrapper->label();
+  
+  // get file id
+  $file_field = $file_wrapper->field_tiedosto->value();
+  $fid = $file_field['fid'];
+  
+  // load file
+  $file = file_load($fid);
+  
+  // delete file
+  if (file_delete($file)) { // deletion ok
+    // delete entity
+    entity_delete($entity_type, $entity_id);
+    // set message
+    drupal_set_message(t('File %file deleted.', array('%file' => $title)));
+  }
+}
+
+
+/**
+ * HELPER FUNCTIONS FOR FORM CONSTRUCTION
+ */
+
+/**
+ * Creates markup for a saved file row
+ * 
+ * @param int $fid - employee_file entity id
+ * 
+ * @return string - markup
+ */
+function reservation_employee_user_files_row($fid) {
+  // load file entity
+  $entity_type = 'employee_file';
+  $file_entity_array = entity_load($entity_type, array($fid));
+  $file_entity = reset($file_entity_array);
+  $file_wrapper = entity_metadata_wrapper($entity_type, $file_entity);
+  
+  // get entity creation time
+  $created = format_date($file_wrapper->created->value(), 'custom', 'd.m.Y - H:i');
+  
+  // get entity title
+  $title = $file_wrapper->label();
+  
+  // get file field
+  $file_field = $file_wrapper->field_tiedosto->value();
+  // create an url from the uri
+  $url = file_create_url($file_field['uri']);
+  
+  // get file type
+  $type = $file_wrapper->field_tiedostotyyppi->label();
+  
+  // crate markup
+  $markup = '<div class="content"><span class="file"><a href="' . $url . '" '
+      . 'target="_blank">' . $title . '</a></span><span class="type">' . $type 
+      . '</span><span class="created">' . $created . '</span></div>';
+  
+  return $markup;
+}

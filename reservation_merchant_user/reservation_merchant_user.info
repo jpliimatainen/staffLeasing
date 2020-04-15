@@ -1,0 +1,8 @@
+name = Reservation Merchant User
+description = Provides functions for user management of merchants
+package = Reservation System
+core = 7.x
+
+dependencies[] = reservation_utilities
+
+stylesheets[all][] = css/reservationMerchantUser.css

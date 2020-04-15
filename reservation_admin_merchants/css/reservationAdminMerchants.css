@@ -1,0 +1,319 @@
+.page-asiakkaat-kauppiaat.admin-user .messages.error {
+    position: fixed;
+    top: 20px;
+    margin: auto;
+    left: 0;
+    right: 0;
+    width: 500px;
+}
+
+/* Customers page */
+.page-asiakkaat #page-title {
+    display: none;
+}
+
+.page-asiakkaat .tabs {
+    margin-top: 30px;
+}
+
+.page-asiakkaat .tabs ul {
+    border: none;
+}
+
+.page-asiakkaat .tabs ul li a {
+    border: none;
+    padding: 10px 20px;
+    background-color: #fff;
+    color: #000;
+    border-top-left-radius: 10px;
+    border-top-right-radius: 10px;
+}
+
+.page-asiakkaat .tabs ul li a:visited {
+    color: #000;
+}
+
+.page-asiakkaat .tabs ul li a.active {
+    background-color: #0092df;
+    color: #fff;
+}
+
+.page-asiakkaat .tabs ul li a.active:visited {
+    color: #fff;
+}
+
+.page-asiakkaat .tabs ul li a:hover {
+    background-color: #000;
+    color: #fff;
+}
+
+
+/* Select location form */
+#reservation-admin-merchants-location-form {
+    float: left;
+    width: 100%;
+    margin-top: 30px;
+}
+
+#reservation-admin-merchants-location-form .form-item,
+#reservation-admin-merchants-location-form .form-submit {
+    display: inline-block;
+}
+
+#reservation-admin-merchants-location-form .form-item {
+    margin-top: 0;
+}
+
+#reservation-admin-merchants-location-form .form-item label {
+    font-size: 14px;
+    margin-bottom: 5px;
+}
+
+#reservation-admin-merchants-location-form .form-type-select select {
+    background-color: #fff;
+    padding: 5px 10px;
+}
+
+#reservation-admin-merchants-location-form .form-submit {
+    margin-left: 30px;
+    border-radius: 10px;
+    margin-top: 18px;
+}
+
+/* Stores list */
+#reservation-admin-merchants-stores {
+    float: left;
+    width: 1140px;
+    padding: 20px;
+    border: 1px solid #ccc;
+}
+
+#reservation-admin-merchants-stores .store-row {
+    float: left;
+    background-color: #fff;
+    margin-bottom: 15px;
+    margin-right: 15px;
+    padding: 25px 20px;
+}
+
+#reservation-admin-merchants-stores .store-row .content {
+    float: left;
+}
+
+#reservation-admin-merchants-stores .name {
+    float: left;
+    width: 250px;
+}
+
+#reservation-admin-merchants-stores .edit-button,
+#reservation-admin-merchants-stores .report-button {
+    float: left;
+}
+
+#reservation-admin-merchants-stores .edit-button {
+    margin-right: 30px;
+    background-color: #0077df;
+    padding: 8px 20px;
+    color: #fff;
+    text-transform: uppercase;
+    font-size: 13px;
+    border-radius: 10px;
+}
+
+#reservation-admin-merchants-stores .report-button {
+    margin-top: 5px;
+}
+
+#reservation-admin-merchants-stores .report-button a {
+    background-color: #585858;
+    padding: 8px 20px;
+    color: #fff;
+    text-transform: uppercase;
+    text-decoration: none;
+    font-size: 13px;
+    border-radius: 10px;
+}
+
+#reservation-admin-merchants-stores .report-button a:visited {
+    color: #fff;
+}
+
+#reservation-admin-merchants-stores .report-button a:hover {
+    background-color: #000;
+}
+
+#reservation-admin-merchants-stores .edit-button:hover {
+    cursor: pointer;
+    background-color: #000;
+}
+
+#reservation-admin-merchants-stores .edit-form {
+    display: none;
+    position: fixed;
+    left: 0;
+    right: 0;
+    margin: auto;
+    top: 200px;
+    width: 500px;
+    -webkit-box-shadow: 0 0 10px 0px #101010;
+    box-shadow: 0 0 10px 0px #101010;
+    padding: 15px 0;
+    background-color: #fff;
+}
+
+#reservation-admin-merchants-stores .edit-form .close-window {
+    margin-left: 460px;
+}
+
+#reservation-admin-merchants-stores .edit-form .close-window:hover {
+    cursor: pointer;
+}
+
+#reservation-admin-merchants-stores .edit-form .form-type-textfield input{
+    width: 440px;
+}
+
+#reservation-admin-merchants-stores .edit-form .form-type-textarea textarea {
+    display: inline;
+    width: 440px;
+}
+
+#reservation-admin-merchants-stores .edit-form .form-item label {
+    margin-bottom: 5px;
+    font-size: 14px;
+}
+
+#reservation-admin-merchants-stores .edit-form .form-item-store-name,
+#reservation-admin-merchants-stores .edit-form .form-item-store-billing,
+#reservation-admin-merchants-stores .edit-form .form-item-store-type {
+    margin: 15px 0 25px 20px;
+}
+
+#reservation-admin-merchants-stores .edit-form .form-item-store-type select {
+    margin-top: 5px;
+    padding: 5px 10px;
+}
+
+#reservation-admin-merchants-stores .edit-form .form-submit {
+    margin-bottom: 15px;
+    margin-left: 20px;
+}
+
+/* Merchants list */
+#reservation-admin-merchants-merchants {
+    float: left;
+    width: 1140px;
+    padding: 20px;
+    border: 1px solid #ccc;
+}
+
+#reservation-admin-merchants-merchants .merchant-row {
+    float: left;
+    background-color: #fff;
+    margin-bottom: 15px;
+    margin-right: 15px;
+    padding: 25px 20px;
+}
+
+#reservation-admin-merchants-merchants .merchant-row .content {
+    float: left;
+}
+
+#reservation-admin-merchants-merchants .name {
+    float: left;
+    width: 250px;
+}
+
+#reservation-admin-merchants-merchants .edit-button,
+#reservation-admin-merchants-merchants .report-button {
+    float: left;
+}
+
+#reservation-admin-merchants-merchants .edit-button {
+    margin-right: 30px;
+    background-color: #0077df;
+    padding: 8px 20px;
+    color: #fff;
+    text-transform: uppercase;
+    font-size: 13px;
+    border-radius: 10px;
+}
+
+#reservation-admin-merchants-merchants .report-button {
+    margin-top: 5px;
+}
+
+#reservation-admin-merchants-merchants .report-button a {
+    background-color: #585858;
+    padding: 8px 20px;
+    color: #fff;
+    text-transform: uppercase;
+    text-decoration: none;
+    font-size: 13px;
+    border-radius: 10px;
+}
+
+#reservation-admin-merchants-merchants .report-button a:visited {
+    color: #fff;
+}
+
+#reservation-admin-merchants-merchants .report-button a:hover {
+    background-color: #000;
+}
+
+#reservation-admin-merchants-merchants .edit-button:hover {
+    cursor: pointer;
+    background-color: #000;
+}
+
+#reservation-admin-merchants-merchants .edit-form {
+    display: none;
+    position: absolute;
+    left: 0;
+    right: 0;
+    margin: auto;
+    top: 90px;
+    width: 800px;
+    -webkit-box-shadow: 0 0 10px 0px #101010;
+    box-shadow: 0 0 10px 0px #101010;
+    padding: 15px 20px;
+    background-color: #fff;
+}
+
+#reservation-admin-merchants-merchants .edit-form.form-error {
+    display: block;
+}
+
+#reservation-admin-merchants-merchants .edit-form .close-window {
+    margin-left: 770px;
+}
+
+#reservation-admin-merchants-merchants .edit-form .close-window:hover {
+    cursor: pointer;
+}
+
+#reservation-admin-merchants-merchants .edit-form .form-type-textfield input {
+    width: 440px;
+}
+
+#reservation-admin-merchants-merchants .edit-form .form-type-textarea textarea {
+    display: inline;
+    width: 460px;
+}
+
+#reservation-admin-merchants-merchants .edit-form .form-type-checkbox {
+    float: left;
+    width: 250px;
+}
+
+#reservation-admin-merchants-merchants .edit-form .form-item label {
+    text-align: left;
+    margin-left: 10px;
+    margin-bottom: 5px;
+    font-size: 14px;
+}
+
+#reservation-admin-merchants-merchants .edit-form .form-submit {
+    margin-bottom: 15px;
+    margin-left: 20px;
+}

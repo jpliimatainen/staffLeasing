@@ -1,0 +1,222 @@
+/* Pending bookings form */
+#block-reservation-admin-bookings-pending-bookings {
+    float: left;
+    width: 840px;
+    margin-top: 40px;
+    clear: both;
+    padding: 20px;
+    border: 1px solid #ccc;
+}
+
+#reservation-admin-bookings-pending-form {
+    float: left;
+    width: 100%;
+}
+
+#reservation-admin-bookings-pending-form .header {
+    float: left;
+    width: 100%;
+    margin-bottom: 15px;
+    font-size: 15px;
+    font-weight: bold;
+}
+
+#reservation-admin-bookings-pending-form .booking-row {
+    float: left;
+    width: 100%;
+    font-size: 13px;
+    padding: 15px 0;
+    background-color: #fff;
+    margin-bottom: 15px;
+}
+
+#reservation-admin-bookings-pending-form .booking-row .content {
+    position: relative;
+    top: 10px;
+}
+
+#reservation-admin-bookings-pending-form .booking-id {
+    float: left;
+    width: 40px;
+    margin-left: 15px;
+}
+
+#reservation-admin-bookings-pending-form .date {
+    float: left;
+    width: 110px;
+}
+
+#reservation-admin-bookings-pending-form .start {
+    float: left;
+    width: 80px;
+}
+
+#reservation-admin-bookings-pending-form .end {
+    float: left;
+    width: 80px;
+}
+
+#reservation-admin-bookings-pending-form .name {
+    float: left;
+    width: 200px;
+}
+
+#reservation-admin-bookings-pending-form .store {
+    float: left;
+    width: 180px;
+}
+
+/* Create a booking form */
+#create-booking-form,
+#block-reservation-admin-bookings-create-booking {
+    float: left;
+    clear: left;
+    width: 600px;
+    padding: 20px;
+    border: 1px solid #ccc;
+}
+
+#create-booking-form form,
+#block-reservation-admin-bookings-create-booking form {
+    float: left;
+    width: 100%;
+}
+
+#create-booking-form form h2,
+#block-reservation-admin-bookings-create-booking form h2 {
+    margin-top: 0;
+    margin-bottom: 20px;
+    font-size: 2em;
+}
+
+#create-booking-form form .container-inline-date,
+#block-reservation-admin-bookings-create-booking form .container-inline-date {
+    float: left;
+    clear: none;
+}
+
+#create-booking-form form .form-type-textfield input,
+#block-reservation-admin-bookings-create-booking form .form-type-textfield input {
+    border-radius: 0;
+    border: 1px solid #ddd;
+}
+
+#create-booking-form form .form-item-start-time input,
+#create-booking-form form .form-item-end-time input,
+#create-booking-form form .form-item-date input,
+#block-reservation-admin-bookings-create-booking form .form-item-start-time input,
+#block-reservation-admin-bookings-create-booking form .form-item-end-time input,
+#block-reservation-admin-bookings-create-booking form .form-item-date input {
+    padding: 5px 0;
+    text-align: center;
+    width: 130px;
+}
+
+#create-booking-form form #location-container,
+#create-booking-form form .form-type-select,
+#create-booking-form form #merchant-selection,
+#create-booking-form form #employee-selection,
+#block-reservation-admin-bookings-create-booking form #location-container,
+#block-reservation-admin-bookings-create-booking form .form-type-select,
+#block-reservation-admin-bookings-create-booking form #merchant-selection,
+#block-reservation-admin-bookings-create-booking form #employee-selection {
+    float: left;
+}
+
+#create-booking-form form .form-item-location,
+#block-reservation-admin-bookings-create-booking form .form-item-location {
+    clear: left;
+    margin-top: 40px;
+}
+
+#create-booking-form form #location-container,
+#block-reservation-admin-bookings-create-booking form #location-container {
+    margin-top: 15px;
+    clear: left;
+}
+
+#create-booking-form form .form-item-store,
+#create-booking-form form #merchant-selection,
+#block-reservation-admin-bookings-create-booking form .form-item-store,
+#block-reservation-admin-bookings-create-booking form #merchant-selection {
+    margin-right: 25px;
+}
+
+#create-booking-form form .form-item-section,
+#block-reservation-admin-bookings-create-booking form .form-item-section {
+    clear: left;
+}
+
+#create-booking-form form .form-type-select select,
+#block-reservation-admin-bookings-create-booking form .form-type-select select {
+    background-color: #fff;
+    padding: 8px 0;
+    text-align: center;
+    border: 1px solid #ddd;
+}
+
+#create-booking-form form .form-item-location select,
+#block-reservation-admin-bookings-create-booking form .form-item-location select {
+    width: 140px;
+}
+
+#create-booking-form form .form-item-section select,
+#block-reservation-admin-bookings-create-booking form .form-item-section select {
+    width: 140px;
+}
+
+#create-booking-form form .form-item-store select,
+#block-reservation-admin-bookings-create-booking form .form-item-store select {
+    width: 240px;
+}
+
+#create-booking-form form #merchant-selection select,
+#create-booking-form form #employee-selection select,
+#block-reservation-admin-bookings-create-booking form #merchant-selection select,
+#block-reservation-admin-bookings-create-booking form #employee-selection select {
+    width: 200px;
+}
+
+#create-booking-form form .form-item-start-time,
+#block-reservation-admin-bookings-create-booking form .form-item-start-time {
+    margin-left: 25px;
+}
+
+#create-booking-form form .form-item-end-time,
+#block-reservation-admin-bookings-create-booking form .form-item-end-time {
+    margin-left: 25px;
+}
+
+#create-booking-form form .form-item-date-date label, 
+#create-booking-form form .form-item-start-time-time label, 
+#create-booking-form form .form-item-end-time-time label, 
+#create-booking-form form .form-item-date .description,
+#create-booking-form form .form-item-start-time .description,
+#create-booking-form form .form-item-end-time .description,
+#block-reservation-admin-bookings-create-booking form .form-item-date-date label, 
+#block-reservation-admin-bookings-create-booking form .form-item-start-time-time label, 
+#block-reservation-admin-bookings-create-booking form .form-item-end-time-time label, 
+#block-reservation-admin-bookings-create-booking form .form-item-date .description,
+#block-reservation-admin-bookings-create-booking form .form-item-start-time .description,
+#block-reservation-admin-bookings-create-booking form .form-item-end-time .description {
+    display: none;
+}
+
+#create-booking-form form .form-item label,
+#block-reservation-admin-bookings-create-booking form .form-item label {
+    font-size: 14px;
+    margin-bottom: 10px;
+}
+
+#create-booking-form form .form-submit,
+#block-reservation-admin-bookings-create-booking form .form-submit {
+    float: left;
+    clear: left;
+    width: 550px;
+    margin-top: 25px;
+    text-transform: none;
+    text-align: center;
+    padding: 15px 0 17px 0;
+    background: #0077df url('../../reservation_merchant/images/calendar.png') no-repeat 190px 15px;
+    font-size: 16px;
+}

@@ -1,0 +1,273 @@
+/* link to user registration page */
+#block-reservation-employee-user-register-employee {
+    float: left;
+    clear: left;
+    margin: 40px 40px 40px 0;
+}
+
+#block-reservation-employee-user-register-employee div a {
+    color: #fff;
+    font-size: 14px;
+    background-color: #0077df;
+    padding: 10px 20px;
+    text-decoration: none;
+}
+
+#block-reservation-employee-user-register-employee div a:visited {
+    color: #fff;
+}
+
+#block-reservation-employee-user-register-employee div a:hover {
+    background-color: #000;
+}
+
+/* user registration form for employees */
+#reservation-employee-user-register-form {
+    float: left;
+    width: 100%;
+    margin-bottom: 30px;
+}
+
+#reservation-employee-user-register-form .form-item-email,
+#reservation-employee-user-register-form .form-item-pass,
+#reservation-employee-user-register-form .form-item-name,
+#reservation-employee-user-register-form .form-item-phone {
+    float: left;
+    width: 100%;
+}
+
+#reservation-employee-user-register-form .form-submit {
+    float: left;
+    clear: both;
+    margin-top: 10px;
+}
+
+#reservation-employee-user-register-form .form-item label {
+    margin-bottom: 5px;
+}
+
+#reservation-employee-user-register-form .form-item-pass > label {
+    display: none;
+}
+
+#reservation-employee-user-register-form input[type="text"] {
+    height: 25px;
+}
+
+#reservation-employee-user-register-form .form-type-textfield input {
+    width: 500px;
+}
+
+#reservation-employee-user-register-form .form-type-textarea textarea {
+    width: 520px;
+}
+
+/* My account page */
+.page-employee #page-title {
+    display: none;
+}
+
+.page-employee .tabs {
+    margin-top: 30px;
+}
+
+.page-employee .tabs ul {
+    border: none;
+}
+
+.page-employee .tabs ul li a {
+    border: none;
+    padding: 10px 20px;
+    background-color: #fff;
+    color: #000;
+    border-top-left-radius: 10px;
+    border-top-right-radius: 10px;
+}
+
+.page-employee .tabs ul li a:visited {
+    color: #000;
+}
+
+.page-employee .tabs ul li a.active {
+    background-color: #0092df;
+    color: #fff;
+}
+
+.page-employee .tabs ul li a.active:visited {
+    color: #fff;
+}
+
+.page-employee .tabs ul li a:hover {
+    background-color: #000;
+    color: #fff;
+}
+
+#my-account-page {
+    float: left;
+    width: 100%;
+}
+
+#my-account-page #employee-name {
+    float: left;
+    width: 100%;
+    margin-top: 25px;
+    margin-bottom: 10px;
+    font-weight: bold;
+    font-size: 18px;
+}
+
+#my-account-page #employee-address {
+    float: left;
+    width: 100%;
+    margin-bottom: 10px;
+    font-size: 14px;
+}
+
+#my-account-page #employee-email {
+    float: left;
+    width: 100%;
+    margin-bottom: 10px;
+    font-size: 14px;
+}
+
+#my-account-page #employee-phone {
+    float: left;
+    width: 100%;
+    font-size: 14px;
+}
+
+#my-account-page #employee-locations {
+    float: left;
+    width: 100%;
+    margin-top: 15px;
+}
+
+#my-account-page #employee-locations .caption {
+    font-weight: bold;
+    font-size: 16px;
+    margin-bottom: 5px;
+}
+
+#my-account-page #employee-locations .location {
+    float: left;
+    width: 100%;
+    font-size: 14px;
+    margin-top: 5px;
+}
+
+/* My account employee edit page */
+#reservation-employee-user-employee-edit-form {
+    float: left;
+    width: 100%;
+    margin-top: 20px;
+    margin-left: 10px;
+}
+
+#reservation-employee-user-employee-edit-form .form-item-pass > label {
+    display: none;
+}
+
+#reservation-employee-user-employee-edit-form .form-item label {
+    font-size: 14px;
+    margin-bottom: 5px;
+}
+
+#reservation-employee-user-employee-edit-form input[type="text"],
+#reservation-employee-user-employee-edit-form input[type="text"] {
+    width: 350px;
+}
+
+#reservation-employee-user-employee-edit-form textarea {
+    width: 370px;
+}
+
+/* My account employee files page */
+.page-employee-files #reservation-employee-user-download-document-form {
+    float: left;
+    width: 500px;
+    margin-top: 30px;
+    padding: 20px;
+    border: 1px solid #ccc;
+}
+
+#reservation-employee-user-download-document-form .form-description {
+    font-weight: bold;
+    font-size: 18px;
+}
+
+#reservation-employee-user-download-document-form .form-item label {
+    font-size: 14px;
+}
+
+#reservation-employee-user-download-document-form .form-managed-file .form-submit {
+    margin-left: 25px;
+}
+
+#reservation-employee-user-download-document-form .form-item-type label {
+    margin-bottom: 5px;
+}
+
+#reservation-employee-user-download-document-form .form-item-type select {
+    background-color: #fff;
+    padding: 8px 20px;
+    text-align: center;
+    border: 1px solid #ddd;
+}
+
+.page-employee-files .saved-files {
+    float: left;
+    clear: left;
+    width: 900px;
+    margin-top: 30px;
+    padding: 20px;
+    border: 1px solid #ccc;
+}
+
+.saved-files .caption {
+    font-weight: bold;
+    font-size: 18px;
+    margin-bottom: 20px;
+}
+
+.saved-files .header,
+.saved-files .file-row {
+    float: left;
+    width: 100%;
+}
+
+.saved-files .file-row {
+    margin-bottom: 10px;
+}
+
+.saved-files .header span,
+.saved-files .file-row span {
+    float: left;
+    font-size: 14px;
+}
+
+.saved-files .header span {
+    font-weight: bold;
+}
+
+.saved-files .file {
+    width: 450px;
+}
+
+.saved-files .type {
+    width: 160px;
+}
+
+.saved-files .created {
+    width: 160px;
+}
+
+.saved-files .file-row .file,
+.saved-files .file-row .type,
+.saved-files .file-row .created {
+    position: relative;
+    top: 10px;
+}
+
+.saved-files .form-submit {
+    background-color: #ff0000;
+}

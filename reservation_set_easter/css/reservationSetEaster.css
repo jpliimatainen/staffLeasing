@@ -1,0 +1,37 @@
+#reservation-set-easter-form,
+#easter-data,
+.easter-caption, 
+.easter-header, 
+.easter-item {
+    float: left;
+    width: 100%;
+}
+
+#easter-data {
+    margin-bottom: 20px;
+}
+
+.easter-caption {
+    font-size: 20px;
+    margin: 10px 0;
+    font-weight: bold;
+}
+
+.easter-header {
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+.easter-item {
+    margin-bottom: 5px;
+}
+
+#easter-data .year {
+    float: left;
+    width: 80px;
+}
+
+#easter-data .date {
+    float: left;
+    width: 120px;
+}

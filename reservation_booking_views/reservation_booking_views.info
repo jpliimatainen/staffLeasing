@@ -1,0 +1,8 @@
+name = Reservation Booking Views
+description = Provides views for bookings in the reservation system
+package = Reservation System
+core = 7.x
+
+dependencies[] = reservation_utilities
+
+stylesheets[all][] = css/reservationBookingViews.css

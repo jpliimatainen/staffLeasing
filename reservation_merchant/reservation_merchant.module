@@ -1,0 +1,1702 @@
+<?php
+
+/**
+ * @file reservation_merchant.module
+ * Provides functions for ordering bookings by merchants
+ */
+
+/**
+ * Implements hook_permission
+ */
+function reservation_merchant_permission() {
+  return array(
+    'administer reservation merchant' => array(
+      'title' => t('Admister reservation merchant'),
+      'descripiton' => t('Execute administrative tasks for reservation merchant'),
+    ),
+  );
+}
+
+
+/**
+ * Implements hook_menu()
+ */
+function reservation_merchant_menu() {
+  $items = array();
+  
+  $items['tilaus'] = array(
+    'title' => 'Työvuoron varaus',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('reservation_merchant_order_form'),
+    'access callback' => 'reservation_utilities_is_merchant',
+    'type' => MENU_NORMAL_ITEM,
+  );
+  
+  $items['admin/config/content/reservation-merchant'] = array(
+    'title' => 'Vuorokori - asetukset',
+    'description' => 'Hallinnoi vuorokorin asetuksia',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('reservation_merchant_settings_form'),
+    'access arguments' => array('administer reservation merchant'),
+    'type' => MENU_NORMAL_ITEM,
+  );
+  
+  return $items;
+}
+
+
+/**
+ * Implements hook_mail()
+ */
+function reservation_merchant_mail($key, &$message, $params) {
+  switch ($key) {
+    case 'merchant_order':
+    case 'merchant_feedback':
+    case 'merchant_printed_booking':
+    case 'merchant_edit_booking':
+    case 'merchant_cancel_booking':
+      if (isset($params['subject'])) {
+        $message['subject'] = $params['subject'];
+      }
+      if (isset($params['body'])) {
+        $message['body'][] = $params['body'];
+      }
+      if (isset($params['headers']) && is_array($params['headers'])) {
+        $message['headers'] += $params['headers'];
+      }
+      break;
+  }
+}
+
+
+/**
+ * Implements hook_file_download_access()
+ */
+function reservation_merchant_file_download_access($file_item, $entity_type, $entity) {
+  global $user;
+
+  if ($entity_type === 'printed_booking' && ($user->uid === $entity->uid || 
+      in_array('ylläpitäjä', $user->roles))) {
+    // printed booking for the current user OR admin; grant access
+    return TRUE;
+  }
+  
+  return FALSE; // no access to this file
+}
+
+
+/**
+ * BLOCKS CONFIGURATION
+ */
+
+/**
+ * Implements hook_block_info()
+ */
+function reservation_merchant_block_info() {
+  $blocks['welcome'] = array(
+    'info' => t('Welcome message'),
+    'visibility' => BLOCK_VISIBILITY_LISTED,
+    'pages' => 'tilaus',
+  );
+  $blocks['printed_booking'] = array(
+    'info' => t('Printed booking'),
+    'visibility' => BLOCK_VISIBILITY_LISTED,
+    'pages' => 'tilaus',
+  );
+  $blocks['order_rows'] = array(
+    'info' => t('Rows in the order'),
+    'visibility' => BLOCK_VISIBILITY_LISTED,
+    'pages' => 'tilaus',
+  );
+  $blocks['feedback'] = array(
+    'info' => t('Send feedback'),
+    'visibility' => BLOCK_VISIBILITY_LISTED,
+    'pages' => 'tilaus',
+  );
+  $blocks['session_booking'] = array(
+    'info' => t('Bookings in this session'),
+    'visibility' => BLOCK_VISIBILITY_LISTED,
+    'pages' => 'tilaus',
+  );
+  $blocks['session_printed_bookings'] = array(
+    'info' => t('Printed bookings in this session'),
+    'visibility' => BLOCK_VISIBILITY_LISTED,
+    'pages' => 'tilaus',
+  );
+  
+  
+  return $blocks;
+}
+
+
+/**
+ * Implements hook_block_view()
+ */
+function reservation_merchant_block_view($delta = '') {
+  $block = array();
+  
+  switch ($delta) {
+    case 'welcome':
+      // get welcome message
+      $block['subject'] = '';
+      $block['content'] = reservation_merchant_get_welcome();
+      break;
+    
+    case 'printed_booking':
+      // get printed booking form
+      $printed_booking = drupal_get_form('reservation_merchant_printed_booking_form');
+      
+      $block['subject'] = t('Printed booking');
+      $block['content'] = drupal_render($printed_booking);
+      break;
+    
+    case 'order_rows':
+      // get order rows form
+      $order_rows = drupal_get_form('reservation_merchant_order_rows_form');
+      
+      $block['subject'] = t('Rows in the order');
+      $block['content'] = drupal_render($order_rows);
+      break;
+    
+    case 'feedback':
+      // get feedback form
+      $feedback = drupal_get_form('reservation_merchant_feedback_form');
+      
+      $block['subject'] = t('Feedback form');
+      $block['content'] = drupal_render($feedback);
+      break;
+    
+    case 'session_booking':
+      // get the bookings in this session form for the current user
+      $bookings = drupal_get_form('reservation_merchant_bookings_form');
+      
+      $block['subject'] = t('Bookings in this session');
+      $block['content'] = drupal_render($bookings);
+      break;
+    
+    case 'session_printed_bookings':
+      // get printed bookings for this session
+      $block['subject'] = t('Printed bookings in this session');
+      $block['content'] = reservation_merchant_get_printed_bookings();
+      break;
+    
+    default:
+      break;
+  }
+
+  return $block;
+}
+
+
+/**
+ * Block content callback - welcome message for the current user
+ * 
+ * @return string - block content
+ */
+function reservation_merchant_get_welcome() {
+  global $user;
+  
+  // get user email
+  $email = $user->mail;
+  
+  if (in_array('kauppias', $user->roles) || in_array('työntekijä', $user->roles)) {
+    // load user profile
+    $profiles = profile2_load_by_user($user->uid);
+    $entity_type = 'profile2';
+    $profile_wrapper = entity_metadata_wrapper($entity_type, reset($profiles));
+    
+    // get user name
+    $name = $profile_wrapper->field_nimi->value();
+  }
+  
+  if (isset($name)) {
+    return '<div class="user-name">' . $email . '</div><div class="welcome-msg">'
+        . 'Hei, ' . $name . '! Tänään on ' . format_date(time(), 'custom', 
+        'l d.m.Y') . '</div>';
+  }
+
+  return '';
+}
+
+
+/**
+ * Block content callback - get printed bookings for this session
+ * 
+ * @return string - block content
+ */
+function reservation_merchant_get_printed_bookings() {
+  global $user;
+  
+  // get last login time
+  $login_time = $user->login;
+  
+  // get ids for printed bookings sent in this session
+  $printed_ids = reservation_utilities_get_printed_bookings_ids($user->uid, 
+      $login_time);
+  
+  if (empty($printed_ids)) { // no printed bookings found; return an empty div
+    return '<div></div>';
+  }
+  
+  $markup = '<h2>Tässä istunnossa lähetetyt työvuorotulosteet</h2>';
+  
+  foreach ($printed_ids as $key => $value) {
+    // load printed_booking entity
+    $entity_type = 'printed_booking';
+    $printed_booking_entity_array = entity_load($entity_type, array($value));
+    $printed_booking_entity = reset($printed_booking_entity_array);
+    $printed_booking_wrapper = entity_metadata_wrapper($entity_type, 
+        $printed_booking_entity);
+    
+    // get file field
+    $file_field = $printed_booking_wrapper->field_file->value();
+    // create an url from the uri
+    $url = file_create_url($file_field['uri']);
+    
+    // get filename
+    $filename = $file_field['filename'];
+    
+    // create markup for the file
+    $markup .= '<div class="printed-booking-row"><a href="' . $url . '" target='
+        . '"_blank">' . $filename . '</a></div>';
+  }
+  
+  return $markup;
+}
+
+/**
+ * CONFIGURATION FORMS
+ */
+
+/**
+ * Form callback - settings form
+ */
+function reservation_merchant_settings_form($form, &$form_state) {
+  $form['email'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Email address'),
+    '#default_value' => variable_get('email', 'info@vuorokori.fi'),
+    '#size' => 60,
+    '#maxlength' => 255,
+    '#description' => t('Enter an email address to which admin messages from the'
+        . ' system are sent.'),
+    '#required' => TRUE,
+  );
+  
+  $form['limit'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Time limit'),
+    '#default_value' => intval(variable_get('limit', 48)),
+    '#size' => 5,
+    '#maxlength' => 10,
+    '#description' => t('Enter a time limit <em>in hours</em> for merchants to '
+        . 'edit their bookings.'),
+    '#required' => TRUE,
+  );
+  
+  return system_settings_form($form);
+}
+
+
+/**
+ * Form validation
+ */
+function reservation_merchant_settings_form_validate($form, &$form_state) {
+  if (!valid_email_address($form_state['values']['email'])) {
+    form_set_error('mail', t('You must enter a valid email address'));
+  }
+  
+  if (intval($form_state['values']['limit']) === 0) {
+    form_set_error('limit', t('You must enter a valid integer number'));
+  }
+}
+
+
+/**
+ * FORM CALLBACKS
+ */
+
+/**
+ * Form callback - printed booking form
+ */
+function reservation_merchant_printed_booking_form($form, &$form_state) {
+  $form['description'] = array(
+    '#markup' => '<div class="form-description">Tai lataa työvuorotuloste</div>',
+  );
+  
+  $form['file'] = array(
+    '#type' => 'managed_file',
+    '#title' => 'Valitse tiedosto',
+    '#description' => 'Sallittu tiedostomuoto: <strong>pdf</strong><br />Suurin'
+        . ' tiedostokoko: <strong>2 MB</strong>',
+    '#upload_validators' => array(
+      'file_validate_extensions' => array('pdf'),
+      'file_validate_size' => array(2*1024*1024), // max file size 2 MB
+    ),
+    '#upload_location' => 'private://printed_bookings/' . date('Y') . '/' 
+        . date('W'),
+    '#required' => TRUE,
+  );
+  
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Send file'),
+  );
+  
+  return $form;
+}
+
+
+/**
+ * Form callback - booking order form
+ */
+function reservation_merchant_order_form($form, &$form_state) {  
+  $date = format_date(REQUEST_TIME, 'custom', 'Y-m-d H:i');
+
+  $form['title'] = array(
+    '#markup' => '<h1>Työvuoron varaus</h1>',
+  );
+  
+  $form['arrow_up'] = array(
+    '#markup' => '<div class="arrow-up"><img src="' . drupal_get_path('theme', 
+        'vuorokori') . '/images/arrow-up.png" /></div>',
+  );
+  
+  $form['container'] = array(
+    '#type' => 'container',
+    '#attributes' => array(
+      'class' => array('form-container'),
+    ),
+  );
+  
+  $form['container']['date'] = array(
+    '#type' => 'date_popup',
+    '#title' => 'Päivämäärä',
+    '#date_format' => 'd.m.Y',
+    '#date_year_range' => '0:+3',
+    '#default_value' => $date,
+    '#required' => TRUE,
+  );
+  
+  $form['container']['start_time'] = array(
+    '#type' => 'date_popup',
+    '#title' => 'Alkaa',
+    '#date_format' => 'H:i',
+    '#default_value' => $date,
+    '#required' => TRUE,
+    '#timepicker' => 'timepicker',
+    '#timepicker_options' => array(
+      'rows' => 6,
+      'showCloseButton' => TRUE,
+      'closeButtonText' => t('Close'),
+      'hourText' => t('Hour'),
+      'minuteText' => t('Minute'),
+      'amPmText' => array(t('AM'), t('PM')),
+    ),
+  );
+  
+  $form['container']['end_time'] = array(
+    '#type' => 'date_popup',
+    '#title' => 'Päättyy',
+    '#date_format' => 'H:i',
+    '#default_value' => $date,
+    '#required' => TRUE,
+    '#timepicker' => 'timepicker',
+    '#timepicker_options' => array(
+      'rows' => 6,
+      'showCloseButton' => TRUE,
+      'closeButtonText' => t('Close'),
+      'hourText' => t('Hour'),
+      'minuteText' => t('Minute'),
+      'amPmText' => array(t('AM'), t('PM')),
+    ),
+  );
+  
+  // get sections
+  $sections = reservation_utilities_get_sections();
+  
+  // section selection
+  $form['container']['section'] = array(
+    '#type' => 'select',
+    '#title' => 'Osasto',
+    '#options' => $sections,
+    '#default_value' => reset($sections),
+  );
+  
+  // get stores
+  $stores = reservation_utilities_get_stores();
+  
+  // store selection
+  $form['container']['store'] = array(
+    '#type' => 'select',
+    '#title' => 'Kauppa',
+    '#options' => $stores,
+    '#default_value' => reset($stores),
+  );
+  
+  $form['container']['submit'] = array(
+    '#type' => 'submit',
+    '#value' => 'Varaa vuoro',
+  );
+  
+  return $form;
+}
+
+
+/**
+ * Form callback - order rows form
+ */
+function reservation_merchant_order_rows_form($form, &$form_state) {
+  global $user;
+  $order_item_markup = '';
+  
+  // get the id for an open order for this user if that exists
+  $order_id = reservation_merchant_get_open_order_id($user->uid);
+  
+  if (empty($order_id)) { // no open order for this user; return an empty div
+    $form['title'] = array(
+      '#markup' => '<div></div>',
+    );
+    return $form;
+  }
+  else { // an open order exists
+    // get the order
+    $entity_type = 'tilaus';
+    $order_array = entity_load($entity_type, array($order_id));
+    $order = reset($order_array);
+    $order_wrapper = entity_metadata_wrapper($entity_type, $order);
+    
+    if (empty($order_wrapper->field_slots_reference->value())) { // no bookings in the order
+      // return an empty div
+      $form['title'] = array(
+        '#markup' => '<div></div>',
+      );
+      return $form;
+    }
+    
+    // attach a custom js
+    $form['#attached']['js'][] = array(
+      'type' => 'file',
+      'data' => drupal_get_path('module', 'reservation_merchant') 
+          . '/js/orderForm.js',
+    );
+    
+    // create markup for form title
+    $form['title'] = array(
+      '#markup' => '<h2>Tilaus ' . $order_id . '</h2>',
+    );
+    
+    // create markup for form header
+    $form['header'] = array(
+      '#markup' => '<div class="order-data-header"><span class="booking-id">'
+          . 'Varaus ID</span><span class="date">Pvm</span><span class="start">'
+          . 'Alkaa</span><span class="end">Päättyy</span><span class="duration">'
+          . 'Kesto</span><span class="store">Kauppa</span><span class="section">'
+          . 'Osasto</span></div>',
+    );
+    
+    // create container for order items
+    $form['order_item_container'] = reservation_merchant_order_item_container(
+        $order_wrapper);
+    /*
+    $form['extra_info'] = array(
+      '#title' => 'Lisätietoja',
+      '#type' => 'textarea',
+    );
+    */
+    // store order id into a hidden field
+    $form['order_id'] = array(
+      '#type' => 'hidden',
+      '#value' => $order_id,
+    );
+  
+    $form['submit'] = array(
+      '#type' => 'submit',
+      '#value' => t('Send order'),
+    );
+  
+    return $form;
+  }
+}
+
+
+/**
+ * Form callback - feedback form
+ */
+function reservation_merchant_feedback_form($form, &$form_state) {
+  $form['feedback'] = array(
+    '#type' => 'textarea',
+    '#title' => 'Viesti',
+    '#required' => TRUE,
+  );
+  
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Send'),
+  );
+  
+  return $form;
+}
+
+/**
+ * Form callback - bookings in this session form
+ */
+function reservation_merchant_bookings_form($form, &$form_state) {
+  global $user;
+  
+  // get last login time
+  $login_time = $user->login;
+  // select states (1 = ordered, 2 = confirmed, 4 = ready)
+  $states = [1, 2, 4];
+  
+  // get ids for bookings ordered since the last login
+  $booking_ids = reservation_utilities_get_booking_ids($user->uid, $states, 
+      NULL, $login_time);
+  
+  if (empty($booking_ids)) { // no bookings; return an empty div
+    $form['title'] = array(
+      '#markup' => '<div></div>',
+    );
+    return $form;
+  }
+  
+  // attach a custom js
+  $form['#attached']['js'][] = array(
+    'type' => 'file',
+    'data' => drupal_get_path('module', 'reservation_merchant') 
+        . '/js/bookingsForm.js',
+  );
+    
+  // create markup for form title
+  $form['title'] = array(
+    '#markup' => '<h2>Tässä istunnossa varatut vuorot</h2>',
+  );
+    
+  // create markup for form header
+  $form['header'] = array(
+    '#markup' => '<div class="bookings-data-header"><span class="order-id">Tilaus'
+        . '</span><span class="booking-id">Varaus</span><span class="date">Pvm'
+        . '</span><span class="start">Alkaa</span><span class="end">Päättyy'
+        . '</span><span class="duration">Kesto</span><span class="store">Kauppa'
+        . '</span><span class="section">Osasto</span><span class="state">Tila'
+        . '</span></div>',
+  );
+    
+  // create container for booking items
+  $form['booking_items_container'] = reservation_merchant_booking_items_container(
+      $booking_ids);
+  
+  return $form;
+}
+
+
+/**
+ * FORM SUBMIT FUNCTIONS
+ */
+
+/**
+ * Form submit - printed booking form
+ */
+function reservation_merchant_printed_booking_form_submit($form, &$form_state) {
+  global $user;
+  
+  /// load user profile
+  $profile_array = profile2_load_by_user($user->uid);
+  $profile = reset($profile_array);
+  
+  // get name for the user
+  $username = $profile->field_nimi['und'][0]['value'];
+
+  // load file
+  $fid = $form_state['values']['file'];
+  $file = file_load($fid);
+  // change status to permanent
+  $file->status = FILE_STATUS_PERMANENT;
+  // save the file
+  $file = file_save($file);
+  
+  // create a new printed_booking entity
+  $entity_type = 'printed_booking';
+  $printed_booking_entity = entity_create($entity_type, array(
+      'type' => $entity_type));
+  $printed_booking_wrapper = entity_metadata_wrapper($entity_type, 
+      $printed_booking_entity);
+    
+  // set entity properties
+  $printed_booking_wrapper->uid = $user->uid;
+  $printed_booking_wrapper->created = time();
+  
+  // set file field value
+  $printed_booking_wrapper->field_file->file->set($file);
+  
+  // save the entity
+  $printed_booking_wrapper->save();
+  
+  // create an email message to the admin
+  $message = '<p><a href="' . file_create_url($file->uri) . '" target="_blank">'
+      . 'Lataa työvuorotuloste</a></p>';
+  
+  $params = array(
+    'subject' => 'Työvuorotuloste asiakkaalta ' . $username,
+    'body' => $message,
+  );
+  
+  // destination for the mail
+  $to = variable_get('email', 'info@vuorokori.fi');
+  // from address
+  $from = $user->mail;
+
+  // send email
+  drupal_mail('reservation_merchant', 'merchant_printed_booking', $to, 
+      language_default(), $params, $from);
+  
+  drupal_set_message(t('Printed booking sent'), 'status');
+}
+
+
+/**
+ * Form submit - booking order form
+ */
+function reservation_merchant_order_form_submit($form, &$form_state) {
+  global $user;
+  
+  // get submitted values
+  // get date as a timestamp
+  $date = strtotime($form_state['values']['date']);
+  // get date as a string
+  $date_string = $form_state['values']['date'];
+  
+  // get start time as a string
+  $start_string = $form_state['values']['start_time'];
+  // combine it with the date
+  $start_string = $date_string . ' ' . $start_string;
+  // get start time as a timestamp
+  $start = strtotime($start_string);
+  
+  // get end time as a string
+  $end_string = $form_state['values']['end_time'];
+  // combine it with the date
+  $end_string = $date_string . ' ' . $end_string;
+  // get end time as a timestamp
+  $end = strtotime($end_string);
+  
+  // get tid for section
+  $section_tid = $form_state['values']['section'];
+  
+  // get tid for store
+  $store_tid = $form_state['values']['store'];
+  
+  // get tid for location
+  $location_tid = reservation_utilities_get_location($store_tid);
+  
+  // get the id for an open order for this user if that exists
+  $order_id = reservation_merchant_get_open_order_id($user->uid);
+  
+  $entity_type = 'tilaus';
+  
+  if (empty($order_id)) { // no open order exists for the user
+    // create a new order entity
+    $order_entity = entity_create($entity_type, array('type' => $entity_type));
+    $order_wrapper = entity_metadata_wrapper($entity_type, $order_entity);
+    
+    // set entity properties
+    $order_wrapper->uid = $user->uid;
+    $order_wrapper->created = time();
+    $order_wrapper->changed = time();
+    
+    // set entity field value
+    $order_wrapper->field_order_state->set(0); // set state "created"
+    
+    // save the entity
+    $order_wrapper->save();
+  }
+  
+  else { // an open order exists
+    // load the order
+    $order_entity_array = entity_load($entity_type, array($order_id));
+    $order_entity = reset($order_entity_array);
+    $order_wrapper = entity_metadata_wrapper($entity_type, $order_entity);
+  }
+  
+  // create a new booking entity
+  $entity_type = 'varaus';
+  $booking_entity = entity_create($entity_type, array('type' => $entity_type));
+  $booking_wrapper = entity_metadata_wrapper($entity_type, $booking_entity);
+  
+  // set entity properties
+  $booking_wrapper->uid = $user->uid;
+  $booking_wrapper->created = time();
+  $booking_wrapper->changed = time();
+  
+  // set entity field values
+  $booking_wrapper->field_slot_date->set($date);
+  $booking_wrapper->field_slot_start->set($start);
+  $booking_wrapper->field_slot_end->set($end);
+  $booking_wrapper->field_slot_state->set(0); // set state "in the order"
+  $booking_wrapper->field_location_ref->set($location_tid);
+  $booking_wrapper->field_store->set($store_tid);
+  $booking_wrapper->field_section_ref->set($section_tid);
+  
+  // save the entity
+  $booking_wrapper->save();
+  
+  // attach the booking to the order
+  $order_wrapper->field_slots_reference[] = $booking_wrapper->getIdentifier();
+  
+  // update changed
+  $order_wrapper->changed = time();
+  
+  // save the order entity
+  $order_wrapper->save();
+  
+  // set message
+  drupal_set_message(t('A booking with the id %id added to the order', array(
+    '%id' => $booking_wrapper->getIdentifier())), 'status');
+}
+
+
+/**
+ * Form submit - order rows form
+ */
+function reservation_merchant_order_rows_form_submit($form, &$form_state) {
+  global $user;
+
+  // load user profile
+  $profile_array = profile2_load_by_user($user->uid);
+  $profile = reset($profile_array);
+  
+  // get name for the user
+  $username = $profile->field_nimi['und'][0]['value'];
+  // get user email
+  $email = $user->mail;
+  
+  // get order id
+  $order_id = $form_state['values']['order_id'];
+  
+  // create order message header
+  $message = '<h3>Tilaus ' . $order_id . '</h3><p>Asiakas: ' . $username . '</p>';
+  
+  $booking_ids = array();
+  
+  foreach ($form_state['values'] as $key => $data) {
+    if (strpos($key, 'date_') === 0) { // a date value
+      $booking_ids[] = substr($key, 5); // get booking id from the key
+    }
+  }
+  
+  if (!empty($booking_ids)) {
+    $booking_data = array();
+    
+    foreach ($booking_ids as $index => $key) {
+      $booking_data[$key] = array();
+      
+      foreach ($form_state['values'] as $delta => $item) {
+        switch ($delta) {
+          case 'date_' . $key: // the date for a booking found
+            $booking_data[$key]['date'] = format_date(strtotime($item), 'custom'
+                , 'D d.m.Y');
+            break;
+          
+          case 'start_time_' . $key: // the start time for a booking found
+            $booking_data[$key]['start'] = $item;
+            break;
+          
+          case 'end_time_' . $key: // the end time for a booking found
+            $booking_data[$key]['end'] = $item;
+            break;
+          
+          case 'section_' . $key: // the section tid for a booking found
+            // get section term
+            $section_term = taxonomy_term_load($item);
+            $booking_data[$key]['section'] = $section_term->name;
+            break;
+          
+          case 'store_' . $key: // the store entity id for a booking found
+            // get store entity
+            $store_entity_array = entity_load('kauppa', array($item));
+            $store_entity = reset($store_entity_array);
+            // get store name
+            $booking_data[$key]['store'] = $store_entity->title;
+            break;
+        }
+      }
+    }
+    
+    $message .= '<p style="font-size: 16px; font-weight: bold;">Varaukset:</p>';
+    
+    // create markup for the bookings in the order
+    $message .= reservation_merchant_bookings_markup($booking_data);
+    /*
+    // get message if it is set
+    if (!empty($form_state['values']['extra_info'])) {
+      $extra_info = $form_state['values']['extra_info'];
+      $message .= '<p style="font-size: 13px;"><span style="font-size: 16px; '
+          . 'font-weight: bold;">Viesti:</span><br />' . $extra_info . '</p>';
+    }
+    */
+  }
+  
+  $params = array(
+    'subject' => 'Tilaus asiakkaalta ' . $username,
+    'body' => $message,
+  );
+  
+  // destination for the mail
+  $to = variable_get('email', 'info@vuorokori.fi');
+  // from address
+  $from = $email;
+
+  // send email
+  drupal_mail('reservation_merchant', 'merchant_order', $to, language_default(), 
+      $params, $from);
+  
+  // load the order
+  $entity_type = 'tilaus';
+  $order_entity_array = entity_load($entity_type, array($order_id));
+  $order_entity = reset($order_entity_array);
+  $order_wrapper = entity_metadata_wrapper($entity_type, $order_entity);
+  
+  // walk through bookings in the order
+  foreach ($order_wrapper->field_slots_reference as $delta => $booking_wrapper) {
+    // set booking status as 'Tilattu'
+    $booking_wrapper->field_slot_state->set(1);
+    // update booking changed
+    $booking_wrapper->changed = time();
+    // save booking
+    $booking_wrapper->save();
+  }
+  
+  // set extra info if available
+  if (isset($extra_info)) {
+    $order_wrapper->field_extra_info->set($extra_info);
+  }
+  
+  // set order status as 'Valmis'
+  $order_wrapper->field_order_state->set(1);
+  // update order changed
+  $order_wrapper->changed = time();
+  
+  // save order
+  $order_wrapper->save();
+  
+  // set a message
+  drupal_set_message(t('Order id %id sent.', array('%id' => $order_id)), 'status');
+}
+
+
+/**
+ * Form submit - delete or cancel booking item
+ */
+function reservation_merchant_delete_order_item($form, &$form_state) {
+  // get #name for the clicked button
+  $name = $form_state['clicked_button']['#name'];
+
+  // get booking id from the name (name = op-delete-[booking-id] or 
+  // name = op-cancel-[booking-id])
+  $booking_id = substr($name, 10);
+  
+  if (strpos($name, 'op-delete-') === 0) { // remove booking from order
+    $op = 'delete';
+  }
+  else if (strpos($name, 'op-cancel-') === 0) { // cancel ordered booking
+    $op = 'cancel';
+  }
+  
+  if ($op === 'delete') {
+    // get the id of an order the booking belongs to
+    $order_id = reservation_utilities_get_order_id_by_booking($booking_id);
+
+    // get the order
+    $entity_type = 'tilaus';
+    $order_array = entity_load($entity_type, array($order_id));
+    $order = reset($order_array);
+    $order_wrapper = entity_metadata_wrapper($entity_type, $order);
+  
+    // get the delta of the booking
+    foreach ($order_wrapper->field_slots_reference as $key => $slot_wrapper) {
+      if ($slot_wrapper->getIdentifier() == $booking_id) {
+        $delta = $key;
+        break;
+      }
+    }
+  
+    if (isset($delta)) {
+      // remove the booking from the order
+      $order_wrapper->field_slots_reference->offsetUnset($delta);
+  
+      // set changed
+      $order_wrapper->changed = time();
+  
+      // save the order
+      $order_wrapper->save();
+  
+      // delete the booking entity
+      entity_delete('varaus', $booking_id);
+  
+      // set a message
+      drupal_set_message(t('Deleted booking with the id %id', array('%id' => 
+          $booking_id)), 'status');
+    }
+  }
+  else if ($op === 'cancel') {
+    // load booking entity
+    $entity_type = 'varaus';
+    $booking_entity_array = entity_load($entity_type, array($booking_id));
+    $booking_entity = reset($booking_entity_array);
+    $booking_wrapper = entity_metadata_wrapper($entity_type, $booking_entity);
+    
+    // set state as 'cancelled'
+    $booking_wrapper->field_slot_state->set(3);
+    
+    // update changed
+    $booking_wrapper->changed = time();
+    
+    // save the entity
+    $booking_wrapper->save();
+    
+    // set a message
+    drupal_set_message(t('Cancelled booking with the id %id', array('%id' => 
+        $booking_id)), 'status');
+    
+    // get user id
+    $user_id = $booking_wrapper->uid->getIdentifier();
+    
+    // load user account
+    $account = user_load($user_id);
+    
+    // load user profile
+    $profile_array = profile2_load_by_user($user_id);
+    $profile = reset($profile_array);
+    $entity_type = 'profile2';
+    $profile_wrapper = entity_metadata_wrapper($entity_type, $profile);
+    
+    // get merchant name
+    $merchant_name = $profile_wrapper->field_nimi->value();
+  
+    // create booking data array for the cancelled booking
+    $booking_data = array(
+      $booking_id => array(
+        'date' => format_date($booking_wrapper->field_slot_date->value(), 
+            'custom', 'D d.m.Y'),    
+        'start' => format_date($booking_wrapper->field_slot_start->value(), 
+            'custom', 'H:i'),
+        'end' => format_date($booking_wrapper->field_slot_end->value(), 
+            'custom', 'H:i'),
+        'section' => $booking_wrapper->field_section_ref->label(),
+        'store' => $booking_wrapper->field_store->label(),
+      ),
+    );
+    
+    // create markup for the data
+    $booking_data_markup = reservation_merchant_bookings_markup($booking_data);
+    
+    // create a message to email
+    $message = '<p><strong>Asiakas:</strong> ' . $merchant_name . '</p><p>'
+        . '<strong>Varaus ID:</strong> ' . $booking_id . '</p><p><strong>Peruttu'
+        . ' varaus:</strong></p><div>' . $booking_data_markup . '</div>';
+    
+    
+    
+    $params = array(
+      'subject' => 'Varauksen peruutus asiakkaalta ' . $merchant_name,
+      'body' => $message,
+    );
+  
+    // destination for the mail
+    $to = variable_get('email', 'info@vuorokori.fi');
+    // from address
+    $from = $account->mail;
+
+    // send email
+    drupal_mail('reservation_merchant', 'merchant_cancel_booking', $to, 
+        language_default(), $params, $from);
+  }
+}
+
+
+/**
+ * Form submit - save edited booking
+ */
+function reservation_merchant_save_edit_order_item($form, &$form_state) {
+  // get #name for the clicked button
+  $name = $form_state['clicked_button']['#name'];
+  
+  // get booking id from the name (name = op-save-[booking-id])
+  $booking_id = substr($name, 8);
+  
+  // get date as a timestamp
+  $date = strtotime($form_state['values']['date_' . $booking_id]);
+  // get date as a string
+  $date_string = $form_state['values']['date_' . $booking_id];
+  
+  // get start time as a string
+  $start_string = $form_state['values']['start_time_' . $booking_id];
+  // combine it with the date
+  $start_string = $date_string . ' ' . $start_string;
+  // get start time as a timestamp
+  $start = strtotime($start_string);
+  
+  // get end time as a string
+  $end_string = $form_state['values']['end_time_' . $booking_id];
+  // combine it with the date
+  $end_string = $date_string . ' ' . $end_string;
+  // get end time as a timestamp
+  $end = strtotime($end_string);
+  
+  // get tid for section
+  $section_tid = $form_state['values']['section_' . $booking_id];
+  
+  // get tid for store
+  $store_tid = $form_state['values']['store_' . $booking_id];
+  
+  // get tid for location
+  $location_tid = reservation_utilities_get_location($store_tid);
+  
+  // load booking entity
+  $entity_type = 'varaus';
+  $booking_entity_array = entity_load($entity_type, array($booking_id));
+  $booking_entity = reset($booking_entity_array);
+  $booking_wrapper = entity_metadata_wrapper($entity_type, $booking_entity);
+  
+  if ($form_state['build_info']['form_id'] === 'reservation_merchant_bookings_form') {
+    // get original values
+    $date_old = format_date($booking_wrapper->field_slot_date->value(), 'custom',
+        'D d.m.Y');
+    $start_old = format_date($booking_wrapper->field_slot_start->value(), 
+        'custom', 'H:i');
+    $end_old = format_date($booking_wrapper->field_slot_end->value(), 'custom', 
+        'H:i');
+    $store_old = $booking_wrapper->field_store->label();
+    $section_old = $booking_wrapper->field_section_ref->label();
+    
+    // set state as 'Tilattu'
+    $booking_wrapper->field_slot_state->set(1);
+  }
+  
+  // set entity field values
+  $booking_wrapper->field_slot_date->set($date);
+  $booking_wrapper->field_slot_start->set($start);
+  $booking_wrapper->field_slot_end->set($end);
+  $booking_wrapper->field_location_ref->set($location_tid);
+  $booking_wrapper->field_store->set($store_tid);
+  $booking_wrapper->field_section_ref->set($section_tid);
+  
+  // update changed
+  $booking_wrapper->changed = time();
+  
+  // save the entity
+  $booking_wrapper->save();
+  
+  if ($form_state['build_info']['form_id'] === 'reservation_merchant_bookings_form') {
+    // get user id
+    $user_id = $booking_wrapper->uid->getIdentifier();
+    
+    // load user account
+    $account = user_load($user_id);
+    
+    // load user profile
+    $profile_array = profile2_load_by_user($user_id);
+    $profile = reset($profile_array);
+    $entity_type = 'profile2';
+    $profile_wrapper = entity_metadata_wrapper($entity_type, $profile);
+    
+    // get merchant name
+    $merchant_name = $profile_wrapper->field_nimi->value();
+    
+    // create booking data array for old data
+    $booking_data_old = array(
+      $booking_id => array(
+        'date' => $date_old,
+        'start' => $start_old,
+        'end' => $end_old,
+        'section' => $section_old,
+        'store' => $store_old,
+      ),
+    );
+    
+    // create booking data array for new data
+    $booking_data_new = array(
+      $booking_id => array(
+        'date' => format_date($date, 'custom', 'D d.m.Y'),
+        'start' => format_date($start, 'custom', 'H:i'),
+        'end' => format_date($end, 'custom', 'H:i'),
+        'section' => $booking_wrapper->field_section_ref->label(),
+        'store' => $booking_wrapper->field_store->label(),
+      ),
+    );
+    
+    // create markup for the data
+    $booking_data_old_markup = reservation_merchant_bookings_markup(
+        $booking_data_old);
+    $booking_data_new_markup = reservation_merchant_bookings_markup(
+        $booking_data_new);
+    
+    // create a message to email
+    $message = '<p><strong>Asiakas:</strong> ' . $merchant_name . '</p><p>'
+        . '<strong>Varaus ID:</strong> ' . $booking_id . '</p><p><strong>Vanhat '
+        . 'tiedot:</strong></p><div>' . $booking_data_old_markup . '</div><p>'
+        . '<strong>Uudet tiedot:</strong></p><div>' . $booking_data_new_markup 
+        . '</div>';
+    
+    $params = array(
+      'subject' => 'Varausmuutos asiakkaalta ' . $merchant_name,
+      'body' => $message,
+    );
+  
+    // destination for the mail
+    $to = variable_get('email', 'info@vuorokori.fi');
+    // from address
+    $from = $account->mail;
+
+    // send email
+    drupal_mail('reservation_merchant', 'merchant_edit_booking', $to, 
+        language_default(), $params, $from);
+  }
+  
+  // set a message
+  drupal_set_message(t('Updated booking with the id %id', array('%id' => 
+      $booking_id)), 'status');
+}
+
+/**
+ * Form submit - feedback form
+ */
+function reservation_merchant_feedback_form_submit($form, &$form_state) {
+  global $user;
+  
+   // load user account
+  $account = user_load($user->uid);
+  
+  // load user profile
+  $profile_array = profile2_load_by_user($user->uid);
+  $profile = reset($profile_array);
+  $entity_type = 'profile2';
+  $profile_wrapper = entity_metadata_wrapper($entity_type, $profile);
+  
+  // get username
+  $username = $user->name;
+  // get user email
+  $email = $user->mail;
+
+  // get locations
+  $locations = reservation_utilities_get_locations_by_pid(
+      $profile_wrapper->getIdentifier());
+  
+  // get store
+  $store = $profile_wrapper->field_store_ref->label();
+  
+  // get feedback string
+  $feedback = $form_state['values']['feedback'];
+  
+  // create feedback message to email
+  $message = '<p>Asiakas: ' . $username . '</p><p>Paikkakunta: ' . reset(
+      $locations) . '</p><p>Kauppa: ' . $store . '</p><p>Palaute: ' . $feedback 
+      . '</p>';
+  
+  $params = array(
+    'subject' => 'Palaute asiakkaalta ' . $username,
+    'body' => $message,
+  );
+  
+  // destination for the mail
+  $to = variable_get('email', 'info@vuorokori.fi');
+  // from address
+  $from = $email;
+
+  // send email
+  drupal_mail('reservation_merchant', 'merchant_feedback', $to, language_default(), 
+      $params, $from);
+  
+  // set a message
+  drupal_set_message(t('Thank you for your feedback!'), 'status');
+}
+
+
+/**
+ * HELPER FUNCTIONS FOR FORM CONSTRUCTION
+ */
+
+/**
+ * Creates order item container array
+ * 
+ * @param object $order_wrapper - wrapped 'tilaus' entity
+ * 
+ * @return array - order item container
+ */
+function reservation_merchant_order_item_container($order_wrapper) {
+  // get sections
+  $sections = reservation_utilities_get_sections();
+  // get stores
+  $stores = reservation_utilities_get_stores();
+    
+  $container = array(
+    '#type' => 'container',
+    '#attributes' => array(
+      'id' => 'order-data-items',
+    ),
+  );
+    
+  foreach ($order_wrapper->field_slots_reference as $delta => $booking_wrapper) {
+    // get booking id
+    $booking_id = $booking_wrapper->getIdentifier();
+    // get store id
+    $store_id = $booking_wrapper->field_store->getIdentifier();
+    // get store
+    $store = $booking_wrapper->field_store->label();
+    // get section id
+    $section_id = $booking_wrapper->field_section_ref->getIdentifier();
+    // get section
+    $section = $booking_wrapper->field_section_ref->label();
+    // get date
+    $date = $booking_wrapper->field_slot_date->value();
+    // get formatted date
+    $date_formatted = format_date($date, 'custom', 'D d.m.Y');
+    // get start time
+    $start = $booking_wrapper->field_slot_start->value();
+    // get formatted start time
+    $start_formatted = format_date($start, 'custom', 'H:i');
+    // get end time
+    $end = $booking_wrapper->field_slot_end->value();
+    // get formatted end time
+    $end_formatted = format_date($end, 'custom', 'H:i');
+    // calculate duration
+    $duration = $end - $start;
+    // get formatted duration
+    $duration_formatted = reservation_utilities_format_interval($duration);
+    
+    // creat a container for the item
+    $container['item_' . $booking_id] = array(
+      '#type' => 'container',
+      '#attributes' => array(
+        'id' => 'order-item-' . $booking_id,
+        'class' => array('order-item'),
+      ),
+    );
+    
+    // creat a container for the item data
+    $container['item_' . $booking_id]['data'] = array(
+      '#type' => 'container',
+      '#attributes' => array(
+        'class' => array('order-item-data'),
+      ),
+    );
+      
+    // create the markup for the item data
+    $order_item_markup = '<div><span class="booking-id">' . $booking_id 
+        . '</span><span class="date">' . $date_formatted . '</span>'
+        . '<span class="start">' . $start_formatted . '</span><span class="end">' 
+        . $end_formatted . '</span><span class="duration">' 
+        . $duration_formatted . '</span><span class="store">' . $store 
+        . '</span><span class="section">' . $section . '</span></div>';
+      
+    $container['item_' . $booking_id]['data']['markup'] = array(
+        '#markup' => $order_item_markup,
+    );
+      
+    // add a submit button for row deletion
+    $container['item_' . $booking_id]['data']['delete_button'] = array(
+      '#type' => 'submit',
+      '#value' => 'Poista',
+      '#name' => 'op-delete-' . $booking_id,
+      '#submit' => array('reservation_merchant_delete_order_item'),
+    );
+    
+    // add markup for row edit link
+    $container['item_' . $booking_id]['data']['edit_link'] = array(
+      '#markup' => '<div id="edit-link-item-' . $booking_id . '" class="edit-'
+          . 'link">Muokkaa</div>',
+    );
+    
+    // creat a container for the item edit fields
+    $container['item_' . $booking_id]['edit'] = array(
+      '#type' => 'container',
+      '#attributes' => array(
+        'id' => 'order-item-edit-item-' . $booking_id,
+        'class' => array('order-item-edit-item'),
+      ),
+    );
+    
+    // add the date field
+    $container['item_' . $booking_id]['edit']['date_' . $booking_id] = array(
+      '#prefix' => '<div class="date-field">',
+      '#suffix' => '</div>',
+      '#type' => 'date_popup',
+      '#title' => 'Päivämäärä',
+      '#date_format' => 'd.m.Y',
+      '#default_value' => format_date($date, 'custom', 'Y-m-d'),
+      '#date_year_range' => '0:+3',
+      '#required' => TRUE,
+      '#attributes' => array(
+        'class' => array('date-field'),
+      ),
+    );
+  
+    // add the start time field
+    $container['item_' . $booking_id]['edit']['start_time_' . $booking_id] = array(
+      '#prefix' => '<div class="time-field">',
+      '#suffix' => '</div>',
+      '#type' => 'date_popup',
+      '#title' => 'Alkaa',
+      '#date_format' => 'H:i',
+      '#default_value' => format_date($start, 'custom', 'Y-m-d H:i'),
+      '#required' => TRUE,
+      '#timepicker' => 'timepicker',
+      '#timepicker_options' => array(
+        'rows' => 6,
+        'showCloseButton' => TRUE,
+        'closeButtonText' => t('Close'),
+        'hourText' => t('Hour'),
+        'minuteText' => t('Minute'),
+        'amPmText' => array(t('AM'), t('PM')),
+      ),
+      '#attributes' => array(
+        'class' => array('time-field'),
+      ),
+    );
+    
+    // add the end time field
+    $container['item_' . $booking_id]['edit']['end_time_' . $booking_id] = array(
+      '#prefix' => '<div class="time-field">',
+      '#suffix' => '</div>',
+      '#type' => 'date_popup',
+      '#title' => 'Päättyy',
+      '#date_format' => 'H:i',
+      '#default_value' => format_date($end, 'custom', 'Y-m-d H:i'),
+      '#required' => TRUE,
+      '#timepicker' => 'timepicker',
+      '#timepicker_options' => array(
+        'rows' => 6,
+        'showCloseButton' => TRUE,
+        'closeButtonText' => t('Close'),
+        'hourText' => t('Hour'),
+        'minuteText' => t('Minute'),
+        'amPmText' => array(t('AM'), t('PM')),
+      ),
+    );
+    
+    // add section selection
+    $container['item_' . $booking_id]['edit']['section_' . $booking_id] = array(
+      '#prefix' => '<div class="section-field">',
+      '#suffix' => '</div>',
+      '#type' => 'select',
+      '#title' => 'Osasto',
+      '#options' => $sections,
+      '#default_value' => $section_id,
+    );
+  
+    // add store selection
+    $container['item_' . $booking_id]['edit']['store_' . $booking_id] = array(
+      '#prefix' => '<div class="store-field">',
+      '#suffix' => '</div>',
+      '#type' => 'select',
+      '#title' => 'Kauppa',
+      '#options' => $stores,
+      '#default_value' => $store_id,
+    );
+    
+    // add markup for cancel row edit link
+    $container['item_' . $booking_id]['edit']['cancel_edit_link'] = array(
+      '#markup' => '<div id="cancel-edit-link-item-' . $booking_id . '" class="'
+          . 'cancel-edit-link">Peruuta</div>',
+    );
+    
+    // add a submit button for row edit save
+    $container['item_' . $booking_id]['edit']['save_button'] = array(
+      '#type' => 'submit',
+      '#value' => 'Tallenna',
+      '#name' => 'op-save-' . $booking_id,
+      '#submit' => array('reservation_merchant_save_edit_order_item'),
+    );
+  }
+  
+  return $container;
+}
+
+
+/**
+ * Creates booking items container array
+ * 
+ * @param array $booking_ids - ids for bookings
+ * 
+ * @return array - booking items container
+ */
+function reservation_merchant_booking_items_container($booking_ids) {
+  // get sections
+  $sections = reservation_utilities_get_sections();
+  // get stores
+  $stores = reservation_utilities_get_stores();
+  
+  $container = array(
+    '#type' => 'container',
+    '#attributes' => array(
+      'id' => 'booking-data-items',
+    ),
+  );
+    
+  foreach ($booking_ids as $delta => $booking_id) {
+    // get order id for this booking
+    $order_id = reservation_utilities_get_order_id_by_booking($booking_id);
+    
+    // load booking entity
+    $entity_type = 'varaus';
+    $booking_entity_array = entity_load($entity_type, array($booking_id));
+    $booking_entity = reset($booking_entity_array);
+    $booking_wrapper = entity_metadata_wrapper($entity_type, $booking_entity);
+    
+    // get store id
+    $store_id = $booking_wrapper->field_store->getIdentifier();
+    // get store
+    $store = $booking_wrapper->field_store->label();
+    // get section id
+    $section_id = $booking_wrapper->field_section_ref->getIdentifier();
+    // get section
+    $section = $booking_wrapper->field_section_ref->label();
+    // get date
+    $date = $booking_wrapper->field_slot_date->value();
+    // get formatted date
+    $date_formatted = format_date($date, 'custom', 'D d.m.Y');
+    // get start time
+    $start = $booking_wrapper->field_slot_start->value();
+    // get formatted start time
+    $start_formatted = format_date($start, 'custom', 'H:i');
+    // get end time
+    $end = $booking_wrapper->field_slot_end->value();
+    // get formatted end time
+    $end_formatted = format_date($end, 'custom', 'H:i');
+    // calculate duration
+    $duration = $end - $start;
+    // get formatted duration
+    $duration_formatted = reservation_utilities_format_interval($duration);
+    
+    // get booking state
+    $state = $booking_wrapper->field_slot_state->label();
+    
+    // creat a container for the item
+    $container['item_' . $booking_id] = array(
+      '#type' => 'container',
+      '#attributes' => array(
+        'id' => 'booking-item-' . $booking_id,
+        'class' => array('booking-item'),
+      ),
+    );
+    
+    // creat a container for the item data
+    $container['item_' . $booking_id]['data'] = array(
+      '#type' => 'container',
+      '#attributes' => array(
+        'class' => array('booking-item-data'),
+      ),
+    );
+      
+    // create the markup for the booking item data
+    $booking_item_markup = '<div><span class="order-id">' . $order_id . '</span>'
+        . '<span class="booking-id">' . $booking_id . '</span><span class='
+        . '"date">' . $date_formatted . '</span><span class="start">' 
+        . $start_formatted . '</span><span class="end">' . $end_formatted 
+        . '</span><span class="duration">' . $duration_formatted . '</span><span'
+        . ' class="store">' . $store . '</span><span class="section">' 
+        . $section . '</span><span class="state">' . $state . '</span></div>';
+      
+    $container['item_' . $booking_id]['data']['markup'] = array(
+        '#markup' => $booking_item_markup,
+    );
+    
+    // get the limit (in seconds) for editing items
+    $limit = variable_get('limit', 48) * 3600;
+    
+    // show edit buttons only if start time exceeds the limit
+    if ($start - $limit > time()) { 
+      // add a submit button for row cancellation
+      $container['item_' . $booking_id]['data']['delete_button'] = array(
+        '#type' => 'submit',
+        '#value' => 'Poista',
+        '#name' => 'op-cancel-' . $booking_id,
+        '#submit' => array('reservation_merchant_delete_order_item'),
+      );
+    
+      // add markup for row edit link
+      $container['item_' . $booking_id]['data']['edit_link'] = array(
+        '#markup' => '<div id="edit-link-item-' . $booking_id . '" class="edit-'
+            . 'link">Muokkaa</div>',
+      );
+    
+      // creat a container for the item edit fields
+      $container['item_' . $booking_id]['edit'] = array(
+        '#type' => 'container',
+        '#attributes' => array(
+          'id' => 'booking-item-edit-item-' . $booking_id,
+          'class' => array('booking-item-edit-item'),
+        ),
+      );
+    
+      // add the date field
+      $container['item_' . $booking_id]['edit']['date_' . $booking_id] = array(
+        '#prefix' => '<div class="date-field">',
+        '#suffix' => '</div>',
+        '#type' => 'date_popup',
+        '#title' => 'Päivämäärä',
+        '#date_format' => 'd.m.Y',
+        '#default_value' => format_date($date, 'custom', 'Y-m-d'),
+        '#date_year_range' => '0:+3',
+        '#required' => TRUE,
+        '#attributes' => array(
+          'class' => array('date-field'),
+        ),
+      );
+  
+      // add the start time field
+      $container['item_' . $booking_id]['edit']['start_time_' . $booking_id] = array(
+        '#prefix' => '<div class="time-field">',
+        '#suffix' => '</div>',
+        '#type' => 'date_popup',
+        '#title' => 'Alkaa',
+        '#date_format' => 'H:i',
+        '#default_value' => format_date($start, 'custom', 'Y-m-d H:i'),
+        '#required' => TRUE,
+        '#timepicker' => 'timepicker',
+        '#timepicker_options' => array(
+          'rows' => 6,
+          'showCloseButton' => TRUE,
+          'closeButtonText' => t('Close'),
+          'hourText' => t('Hour'),
+          'minuteText' => t('Minute'),
+          'amPmText' => array(t('AM'), t('PM')),
+        ),
+        '#attributes' => array(
+          'class' => array('time-field'),
+        ),
+      );
+    
+      // add the end time field
+      $container['item_' . $booking_id]['edit']['end_time_' . $booking_id] = array(
+        '#prefix' => '<div class="time-field">',
+        '#suffix' => '</div>',
+        '#type' => 'date_popup',
+        '#title' => 'Päättyy',
+        '#date_format' => 'H:i',
+        '#default_value' => format_date($end, 'custom', 'Y-m-d H:i'),
+        '#required' => TRUE,
+        '#timepicker' => 'timepicker',
+        '#timepicker_options' => array(
+          'rows' => 6,
+          'showCloseButton' => TRUE,
+          'closeButtonText' => t('Close'),
+          'hourText' => t('Hour'),
+          'minuteText' => t('Minute'),
+          'amPmText' => array(t('AM'), t('PM')),
+        ),
+      );
+    
+      // add section selection
+      $container['item_' . $booking_id]['edit']['section_' . $booking_id] = array(
+        '#prefix' => '<div class="section-field">',
+        '#suffix' => '</div>',
+        '#type' => 'select',
+        '#title' => 'Osasto',
+        '#options' => $sections,
+        '#default_value' => $section_id,
+      );
+  
+      // add store selection
+      $container['item_' . $booking_id]['edit']['store_' . $booking_id] = array(
+        '#prefix' => '<div class="store-field">',
+        '#suffix' => '</div>',
+        '#type' => 'select',
+        '#title' => 'Kauppa',
+        '#options' => $stores,
+        '#default_value' => $store_id,
+      );
+    
+      // add markup for cancel row edit link
+      $container['item_' . $booking_id]['edit']['cancel_edit_link'] = array(
+        '#markup' => '<div id="cancel-edit-link-item-' . $booking_id . '" class="'
+            . 'cancel-edit-link">Peruuta</div>',
+      );
+      
+      // add a submit button for row edit save
+      $container['item_' . $booking_id]['edit']['save_button'] = array(
+        '#type' => 'submit',
+        '#value' => 'Tallenna',
+        '#name' => 'op-save-' . $booking_id,
+        '#submit' => array('reservation_merchant_save_edit_order_item'),
+      );
+    }
+  }
+  
+  return $container;
+}
+
+
+/**
+ * MISCALLENIOUS HELPER FUNCTIONS
+ */
+
+/**
+ * Helper function - creates markup for given bookings
+ * 
+ * @param array $booking_data - data of bookings
+ * 
+ * @return string - markup
+ */
+function reservation_merchant_bookings_markup($booking_data) {
+  // create header
+  $markup = '<table><thead><tr style="padding-top: 10px; padding-bottom: 10px; '
+      . 'font-size: 13px;"><th style="text-align: left; width: 90px;">Varaus ID'
+      . '</th><th style="text-align: left; width: 120px;">Pvm</th><th style="text'
+      . '-align: left; width: 80px;">Alkaa</th><th style="text-align: left; '
+      . 'width: 80px;">Päättyy</th><th style="text-align: left; width: 120px;">'
+      . 'Kesto</th><th style="text-align: left; width: 180px;">Kauppa</th><th '
+      . 'style="text-align: left; width: 120px;">Osasto</th></thead><tbody>';
+  
+  // create markup for bookings
+  foreach ($booking_data as $key => $data) {
+    // calculate duration
+    $duration = strtotime($data['end']) - strtotime($data['start']);
+    // formatted duration
+    $duration = reservation_utilities_format_interval($duration);
+    // create markup
+    $markup .= '<tr style="padding-top: 10px; padding-bottom: 10px; font-size: '
+        . '12px;"><td style="text-align: left; width: 90px;">' . $key . '</td>'
+        . '<td style="text-align: left; width: 120px;">' . $data['date'] 
+        . '</td><td style="text-align: left; width: 80px;">' . $data['start'] 
+        . '</td><td style="text-align: left; width: 80px;">' . $data['end'] 
+        . '</td><td style="text-align: left; width: 120px;">'. $duration 
+        . '</td><td style="text-align: left; width: 180px;">' . $data['store'] 
+        . '</td><td style="text-align: left; width: 120px;">' . $data['section'] 
+        . '</td></tr>';
+  }
+  
+  $markup .= '</tbody></table>';
+  
+  return $markup;
+}
+
+
+/**
+ * Helper function - return id of an open order for the user if exists
+ * 
+ * @param int $uid - user id
+ * 
+ * @return mixed - order id if an open order exists for the user; empty string otherwise
+ * 
+ */
+function reservation_merchant_get_open_order_id($uid) {
+  // create a new query
+  $query = new EntityFieldQuery();
+  // set conditions
+  $query->entityCondition('entity_type', 'tilaus') // order entity
+    ->propertyCondition('uid', $uid) // orders for this user
+    ->fieldCondition('field_order_state', 'value', 0); // state is "ordered"
+  
+  // execute query
+  $result = $query->execute();
+  
+  if (empty($result)) { // no id found
+    return '';
+  }
+  
+  // return an order id
+  foreach ($result['tilaus'] as $key => $data) {
+    return $key;
+  }
+}
