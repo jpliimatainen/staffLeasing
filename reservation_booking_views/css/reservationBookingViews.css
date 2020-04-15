@@ -296,15 +296,15 @@
     border: 2px solid #ff0000;
 }
 
-#booking-calendar .day-content.market {
+#booking-calendar .day-content.type1 {
     background-color: #ffa500;
 }
 
-#booking-calendar .day-content.supermarket {
+#booking-calendar .day-content.type2 {
     background-color: #0077df;
 }
 
-#booking-calendar .day-content.citymarket {
+#booking-calendar .day-content.type3 {
     background-color: #f08080;
 }
 
