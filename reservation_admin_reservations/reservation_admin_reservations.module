@@ -217,7 +217,7 @@ function reservation_admin_reservations_confirm_reservation($form, &$form_state)
   // destination for the mail
   $to = $email;
   // from address
-  $from = variable_get('email', 'info@vuorokori.fi');
+  $from = variable_get('email', 'info@email.fi');
 
   // send email
   drupal_mail('reservation_admin_reservations', 'reservation_confirmation', $to, 
@@ -273,7 +273,7 @@ function reservation_admin_reservations_reject_reservation($form, &$form_state) 
   // destination for the mail
   $to = $email;
   // from address
-  $from = variable_get('email', 'info@vuorokori.fi');
+  $from = variable_get('email', 'info@email.fi');
 
   // send email
   drupal_mail('reservation_admin_reservations', 'reservation_rejection', $to, 
