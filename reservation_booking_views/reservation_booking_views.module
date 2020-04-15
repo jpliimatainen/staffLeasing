@@ -1400,7 +1400,7 @@ function reservation_booking_views_create_calendar() {
   
   // create markup for the calendar header
   $markup = '<div id="calendar-arrow-up"><img src="' . drupal_get_path('theme', 
-      'vuorokori') . '/images/arrow-up.png" /></div><div id="booking-calendar">'
+      'theme1') . '/images/arrow-up.png" /></div><div id="booking-calendar">'
       . '<div id="week-number">Viikko ' . $week_number . '</div>';
   
   // get bookings
