@@ -547,7 +547,7 @@ function reservation_admin_bookings_create_form_submit($form, &$form_state) {
     
     // send email
     /* drupal_mail('reservation_admin_bookings', 'booking_confirm_employee', $to, 
-        language_default(), $params, 'info@vuorokori.fi'); */
+        language_default(), $params, 'info@testi.fi'); */
   }
   
   // prepare a message for the merchant and admin
@@ -578,11 +578,11 @@ function reservation_admin_bookings_create_form_submit($form, &$form_state) {
   // send message to the merchant who made this booking and to admin
   $uid = $booking_wrapper->uid->getIdentifier();
   $to = reservation_utilities_get_email_by_user_id($uid) . ',' 
-      . variable_get('email', 'info@vuorokori.fi');
+      . variable_get('email', 'info@testi.fi');
   
   // send email
   /* drupal_mail('reservation_admin_bookings', 'booking_confirm_merchant_admin', 
-      $to, language_default(), $params, 'info@vuorokori.fi'); */
+      $to, language_default(), $params, 'info@testi.fi'); */
   
   $form_state['rebuild'] = TRUE;
   
