@@ -813,7 +813,7 @@ function reservation_merchant_user_register_form_submit($form, &$form_state) {
   );
   
   // destination for the mail
-  $to = variable_get('email', 'info@vuorokori.fi');
+  $to = variable_get('email', 'info@email.fi');
   // from address
   $from = $account->mail;
 
